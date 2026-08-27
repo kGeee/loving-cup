@@ -4,7 +4,7 @@ import type { AppOrder, CartLine, CartModifierSelection } from "@/types/menu";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 
 /** Immersive cup-build wall-clock — slow enough to read the make. */
-export const CUP_BUILD_MS = 2800;
+export const CUP_BUILD_MS = 3000;
 
 const MYO_STILL = "/cup-strawberry-shortcake.webp";
 
@@ -182,7 +182,11 @@ function toppingKind(name: string): ToppingKind {
   if (/oreo|animal cracker|cookie dough|cookie/.test(key)) return "cookie";
   if (/chocolate chip|heath|english toffee|espresso/.test(key)) return "chip";
   if (/sprinkle|granola|cereal|pretzel|coconut/.test(key)) return "sprinkle";
-  if (/nutella|peanut butter|almond butter|ganache|caramel|salted caramel/.test(key))
+  if (
+    /nutella|peanut butter|almond butter|ganache|caramel|salted caramel/.test(
+      key,
+    )
+  )
     return "sauce";
   if (/pecan|walnut|pistachio|almond/.test(key)) return "nut";
   if (/gummy/.test(key)) return "gummy";
@@ -232,6 +236,24 @@ function toppingsForOrder(order: AppOrder): ToppingSpec[] {
     }));
 }
 
+/** Extra sprinkle rods for rainbow sprinkles so the cascade reads clearly. */
+function expandBits(toppings: ToppingSpec[]): Array<ToppingSpec & { bitKey: string }> {
+  const bits: Array<ToppingSpec & { bitKey: string }> = [];
+  for (const t of toppings) {
+    bits.push({ ...t, bitKey: t.id });
+    if (t.kind === "sprinkle") {
+      bits.push(
+        { ...t, bitKey: `${t.id}-b`, colors: ["#f0b429", "#3d8bfd"] },
+        { ...t, bitKey: `${t.id}-c`, colors: ["#3d8bfd", "#f84030"] },
+      );
+    }
+    if (t.kind === "berry") {
+      bits.push({ ...t, bitKey: `${t.id}-b` });
+    }
+  }
+  return bits.slice(0, 12);
+}
+
 export function CupBuildAnimation({
   order,
   reducedMotion,
@@ -244,6 +266,7 @@ export function CupBuildAnimation({
   const still = useMemo(() => cupStillForOrder(order), [order]);
   const yogurt = useMemo(() => yogurtForOrder(order), [order]);
   const toppings = useMemo(() => toppingsForOrder(order), [order]);
+  const bits = useMemo(() => expandBits(toppings), [toppings]);
   const finishedRef = useRef(onFinished);
   finishedRef.current = onFinished;
 
@@ -256,9 +279,7 @@ export function CupBuildAnimation({
     return () => window.clearTimeout(t);
   }, [reducedMotion]);
 
-  const modeClass = reducedMotion
-    ? "cup-build--reduced"
-    : "cup-build--play";
+  const modeClass = reducedMotion ? "cup-build--reduced" : "cup-build--play";
 
   return (
     <div
@@ -271,7 +292,6 @@ export function CupBuildAnimation({
           ["--yogurt-mid" as string]: yogurt.mid,
           ["--yogurt-light" as string]: yogurt.light,
           ["--yogurt-fleck" as string]: yogurt.fleck ?? "transparent",
-          ["--topping-count" as string]: String(Math.max(toppings.length, 1)),
         } as CSSProperties
       }
     >
@@ -281,8 +301,17 @@ export function CupBuildAnimation({
             <div className="cup-build__glow" />
             <div className="cup-build__shadow" />
 
-            {/* Soft-serve pour stream */}
+            {/* Soft-serve pour stream — above everything during pour */}
             <div className="cup-build__stream" />
+
+            {/* Soft-serve mound sits ON the rim (visible above cup wall) */}
+            <div className="cup-build__serve">
+              <div className="cup-build__yogurt-mass" />
+              <div className="cup-build__yogurt-coil cup-build__yogurt-coil--a" />
+              <div className="cup-build__yogurt-coil cup-build__yogurt-coil--b" />
+              <div className="cup-build__yogurt-peak" />
+              <div className="cup-build__yogurt-flecks" />
+            </div>
 
             <div className="cup-build__cup">
               <div className="cup-build__rim" />
@@ -302,36 +331,25 @@ export function CupBuildAnimation({
                   Family owned · since 2008
                 </span>
               </div>
-
-              <div className="cup-build__bowl">
-                <div className="cup-build__yogurt">
-                  <div className="cup-build__yogurt-mass" />
-                  <div className="cup-build__yogurt-ribbon" />
-                  <div className="cup-build__yogurt-peak" />
-                  <div className="cup-build__yogurt-flecks" />
-                </div>
-              </div>
             </div>
 
             <div className="cup-build__toppings">
-              {toppings.map((t, i) => (
+              {bits.map((t, i) => (
                 <span
-                  key={t.id}
+                  key={t.bitKey}
                   className={`cup-build__bit cup-build__bit--${t.kind}`}
                   style={
                     {
                       ["--i" as string]: String(i),
                       ["--c1" as string]: t.colors[0],
                       ["--c2" as string]: t.colors[1],
-                      ["--n" as string]: String(toppings.length),
+                      ["--n" as string]: String(bits.length),
                     } as CSSProperties
                   }
-                  title={t.name}
                 />
               ))}
             </div>
 
-            {/* Final order still — the cup they receive */}
             <div
               className="cup-build__reveal"
               style={{ backgroundImage: `url(${still})` }}
