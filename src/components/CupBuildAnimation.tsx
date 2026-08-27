@@ -294,11 +294,15 @@ export function CupBuildAnimation({
       return;
     }
     let cancelled = false;
-    const start = performance.now();
+    let elapsed = 0;
+    let last = performance.now();
     let raf = 0;
     const tick = (now: number) => {
       if (cancelled) return;
-      const elapsed = now - start;
+      // Cap delta so background-tab rAF throttling can't skip the whole make.
+      const delta = Math.min(Math.max(now - last, 0), 48);
+      last = now;
+      elapsed += delta;
       setPhase(phaseAt(elapsed));
       if (elapsed >= CUP_BUILD_MS) {
         finishedRef.current();
