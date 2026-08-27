@@ -4,9 +4,14 @@ import {
   isSharedCatalogBleed,
   looksLikeFroyoCategory,
   looksLikeFroyoItem,
+  shouldHideCatalogItem,
 } from "@/lib/catalog-filter";
 import { getDemoCatalog } from "@/lib/demo-catalog";
 import { getAppMode, getSquareEnv } from "@/lib/env";
+import {
+  inferModifierListRole,
+  normalizeMenuItem,
+} from "@/lib/normalize-modifiers";
 import { getNopLocationId, getSquareClient, moneyToCents } from "@/lib/square";
 import type {
   CatalogPayload,
@@ -54,11 +59,10 @@ function mapModifierList(
   const selectionType =
     data.selectionType === "MULTIPLE" ? "MULTIPLE" : "SINGLE";
 
-  // CYOB sheet: mix-in lists that include 2 in the base price.
   const name = data.name ?? "Modifiers";
-  const includedCount = /mix[\s-]*in/i.test(name) && /2|two|included/i.test(name)
-    ? 2
-    : /cyob/i.test(name)
+  const role = inferModifierListRole(name);
+  const includedCount =
+    role === "mixin" && (/2|two|included/i.test(name) || /cyob/i.test(name))
       ? 2
       : undefined;
 
@@ -67,6 +71,7 @@ function mapModifierList(
   return {
     id: modListObj.id!,
     name,
+    role,
     selectionType,
     minSelected: minRaw == null ? 0 : Number(minRaw),
     maxSelected: maxRaw == null || Number(maxRaw) <= 0 ? null : Number(maxRaw),
@@ -76,6 +81,7 @@ function mapModifierList(
 }
 
 export async function fetchCatalog(): Promise<CatalogPayload> {
+  // Demo is the no-secrets fallback — never mixed into the live Square path.
   if (getAppMode() === "demo") {
     return getDemoCatalog();
   }
@@ -126,6 +132,7 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
     const data = o.itemData;
     if (!data?.name) continue;
     if (isSharedCatalogBleed(data.name)) continue;
+    if (shouldHideCatalogItem(data.name)) continue;
 
     const catIds = [
       ...(data.categories?.map((c) => c.id!).filter(Boolean) ?? []),
@@ -135,7 +142,6 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
       .map((id) => categoryNameById.get(id))
       .filter((n): n is string => Boolean(n));
 
-    // Prefer froyo categories; also keep items that look like froyo by name.
     const inFroyoCat = catIds.some((id) => froyoCategoryIds.has(id));
     if (!inFroyoCat && !looksLikeFroyoItem(data.name, catNames)) continue;
 
@@ -149,6 +155,7 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
         id: v.id!,
         name: v.itemVariationData?.name ?? "Regular",
         sku: v.itemVariationData?.sku ?? undefined,
+        // Prices come only from Square Catalog — never rewrite to JPEG totals.
         price: serializeMoney(v.itemVariationData?.priceMoney?.amount),
         ordinal: v.itemVariationData?.ordinal ?? i,
       }))
@@ -157,7 +164,7 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
     if (variations.length === 0) continue;
 
     const modifierLists: MenuModifierList[] = (data.modifierListInfo ?? [])
-      .filter((info) => !info.enabled || info.enabled === true)
+      .filter((info) => info.enabled !== false)
       .map((info) => {
         const list = modifierListsById.get(info.modifierListId!);
         if (!list) return null;
@@ -187,21 +194,21 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
     });
 
     const imageId = data.imageIds?.[0];
-    items.push({
-      id: o.id!,
-      name: data.name,
-      description: data.description ?? undefined,
-      categoryIds: catIds,
-      categoryNames: catNames,
-      variations,
-      modifierLists,
-      soldOut,
-      imageUrl: imageId ? imageUrlById.get(imageId) : undefined,
-    });
+    items.push(
+      normalizeMenuItem({
+        id: o.id!,
+        name: data.name,
+        description: data.description ?? undefined,
+        categoryIds: catIds,
+        categoryNames: catNames,
+        variations,
+        modifierLists,
+        soldOut,
+        imageUrl: imageId ? imageUrlById.get(imageId) : undefined,
+      }),
+    );
   }
 
-  // If froyo category filter yielded nothing but we got ITEMs, fail closed on bleed only.
-  // Empty catalog is acceptable — never invent prices.
   const categories: MenuCategory[] = [...categoryNameById.entries()]
     .filter(([id]) => froyoCategoryIds.has(id))
     .map(([id, name], i) => ({ id, name, ordinal: i }));

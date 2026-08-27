@@ -1,4 +1,4 @@
-/** Shared menu types — prices always come from Square (or demo mirrors of brief Square prices). */
+/** Shared menu types — prices always from Square Catalog (demo mirrors that model). */
 
 export type MoneyCents = number;
 
@@ -7,17 +7,19 @@ export interface MenuMoney {
   currency: "USD";
 }
 
+export type ModifierListRole = "size" | "base" | "mixin" | "cone" | "other";
+
 export interface MenuModifier {
   id: string;
   name: string;
   price: MenuMoney;
-  /** For CYOB: included mix-ins don't add price until extras */
   ordinal?: number;
 }
 
 export interface MenuModifierList {
   id: string;
   name: string;
+  role: ModifierListRole;
   selectionType: "SINGLE" | "MULTIPLE";
   minSelected: number;
   maxSelected: number | null;
@@ -40,6 +42,7 @@ export interface MenuItem {
   description?: string;
   categoryIds: string[];
   categoryNames: string[];
+  /** Catalog variation(s) — cup base price lives here ($4.99), not JPEG size totals. */
   variations: MenuVariation[];
   modifierLists: MenuModifierList[];
   /** Catalog object name/SKU `akid` — sold out, cannot order. */
@@ -102,7 +105,6 @@ export interface AppOrder {
   discountCents: MoneyCents;
   totalCents: MoneyCents;
   currency: "USD";
-  /** Square order id when live; same as id in demo. */
   squareOrderId?: string;
   paymentId?: string;
   loyaltyRewardId?: string;
@@ -122,7 +124,6 @@ export interface LoyaltyPreview {
     points: number;
     discountCents?: MoneyCents;
   }>;
-  /** Demo / catalog discount fallback when Loyalty isn't configured. */
   catalogDiscount?: {
     id: string;
     name: string;

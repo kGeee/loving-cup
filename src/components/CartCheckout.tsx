@@ -173,7 +173,7 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
       >
         {busy ? "Creating order…" : "Continue to payment"}
       </button>
-      <p className="fine-print">Pickup only at NOPA · 608 Divisadero St</p>
+      <p className="fine-print">Pickup only at NOPA · 608 Divisadero St · Hours 11–10 · no delivery</p>
     </div>
   );
 }

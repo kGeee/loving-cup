@@ -2,6 +2,11 @@ import Link from "next/link";
 import type { MenuItem } from "@/types/menu";
 import { formatUsd } from "@/lib/pricing";
 
+/** Menu row “from” = lowest catalog variation base (e.g. $4.99), not JPEG size totals. */
+function fromPriceCents(item: MenuItem): number {
+  return Math.min(...item.variations.map((v) => v.price.amount));
+}
+
 export function MenuGrid({ items }: { items: MenuItem[] }) {
   if (items.length === 0) {
     return (
@@ -15,7 +20,7 @@ export function MenuGrid({ items }: { items: MenuItem[] }) {
   return (
     <ul className="menu-grid">
       {items.map((item, i) => {
-        const from = Math.min(...item.variations.map((v) => v.price.amount));
+        const from = fromPriceCents(item);
         return (
           <li
             key={item.id}

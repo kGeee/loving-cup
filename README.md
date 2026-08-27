@@ -8,18 +8,39 @@ Live Square Catalog, pickup CreateOrder, Web Payments, loyalty/catalog-discount 
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **Demo / POC** | Any `SQUARE_*` secret missing | Sample catalog + fake-pay + in-memory admin board. Bannered as demo. Prices locked to brief Square amounts. |
-| **Square** | `SQUARE_APPLICATION_ID`, `SQUARE_ACCESS_TOKEN`, and `SQUARE_LOCATION_ID` (NOPA) all set | Live Catalog / Orders / Payments / Loyalty. Fail-closed if calls fail — no invented menu. |
+| **Demo / POC** | Any `SQUARE_*` secret missing | Labeled sample catalog + fake-pay + in-memory admin. Same **$4.99 base + size modifiers** model as live Square. Gated off the live path. |
+| **Square** | `SQUARE_APPLICATION_ID`, `SQUARE_ACCESS_TOKEN`, and `SQUARE_LOCATION_ID` (NOPA) all set | Live Catalog / Orders / Payments / Loyalty. Prices from Catalog only — never invent or copy /menu JPEG totals. |
 
 Sandbox first (`SQUARE_ENVIRONMENT=sandbox` by default).
+
+## Pricing (Square Catalog model)
+
+Cup **$4.99** base variation + **size modifiers**:
+
+| Size | Modifier |
+|------|----------|
+| Kid | +$0.00 |
+| Small | +$1.01 |
+| Medium | +$2.01 |
+| Large | +$3.01 |
+| Pint | +$7.01 |
+
+Do **not** hardcode variation prices as $6 / $7 / $8 / $12 (those are JPEG totals, not Catalog rows). Extra mix-in **+$0.75**, cone **+$1.25**. CYOB: 2 mix-ins included.
 
 ## NOPA (only kitchen this pass)
 
 - **608 Divisadero St**
 - **415-859-3112**
-- **11:00–9:50 daily**
+- **Hours 11–10 daily** (not Square Online “Tomorrow …”, not lovingcup.com “WE'RE OPEN”)
 
-No Marin kitchen switcher. Marin is omitted (no hours/address in brief — do not invent).
+No Marin kitchen switcher. Pickup only — **no delivery wall** on browse (do not copy Square `/s/order` Delivery modal).
+
+## Design lock extras
+
+- Hide empty **`astarter`**
+- Mix-in sheet: **one** chip list; **Toasted Coconut** once (not two ~30-item grids)
+- Out of this pass: 7 missing printed flavors + rice pudding (do not invent)
+- **`akid`**: Sold out (cannot order)
 
 ## Env secrets (names only — Kevin sets values)
 
@@ -47,26 +68,19 @@ npm start
 
 ## Demo click-through (no Square env)
 
-1. Open `/` — demo banner + sample menu (15 signature cups + CYOB + sold-out `akid`).
-2. Customize a cup (size / base / extra mix-in / cone) → cart.
-3. Pickup name → optional rewards redeem → Continue → **Fake-pay**.
+1. Open `/` — demo banner + sample menu; hours **11–10**; no delivery modal.
+2. Customize a cup (size / base / mix-ins / cone) → cart. Mix-ins are one chip row.
+3. Pickup name → optional rewards → Continue → **Fake-pay**.
 4. `/admin` → open order → **Mark ready**.
-
-Demo prices (from brief / live Square — not invented extras):
-
-- Kid **$4.99** · S **$6** · M **$7** · L **$8** · Pint **$12**
-- Extra mix-in **+$0.75** · Cone **+$1.25**
-- CYOB: 2 mix-ins included
-- `akid`: Sold out (cannot order)
 
 ## Square live path
 
-- Catalog: list + filter froyo categories/items; denylist shared-catalog bleed (`petite prairie`, `marinara`/`ranch`, `diet coke`, pizza, …); location-scoped to NOPA; `akid` sold out.
+- Catalog: list + filter froyo; hide `astarter` / rice pudding; denylist shared-catalog bleed; collapse duplicate mix-in lists; location-scoped to NOPA; `akid` sold out.
 - Order: `CreateOrder` with catalog variation + modifier IDs, fulfillment `PICKUP` at `SQUARE_LOCATION_ID`.
-- Pay: Web Payments `source_id` → `CreatePayment` against that order.
-- Rewards: Square Loyalty redeem when configured; otherwise optional catalog discount on the order — no homemade points ledger.
-- Admin: open pickup orders + Mark ready (complete fulfillment / complete order).
-- Webhook: `POST /api/webhooks/square` — HMAC signature verified via `WebhooksHelper`, then sync order state.
+- Pay: Web Payments `source_id` → `CreatePayment` against that order (Square is the card processor when env is set).
+- Rewards: Square Loyalty redeem when configured; otherwise optional catalog discount — no homemade points ledger.
+- Admin: open pickup orders + Mark ready.
+- Webhook: `POST /api/webhooks/square` — HMAC signature verified, then sync order state.
 
 Square Online (`https://loving-cup.square.site/s/order`) is reference only, not this app.
 

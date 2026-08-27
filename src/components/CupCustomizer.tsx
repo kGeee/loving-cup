@@ -2,27 +2,38 @@
 
 import { useCart } from "@/components/CartProvider";
 import { buildCartLine, formatUsd } from "@/lib/pricing";
-import type { MenuItem } from "@/types/menu";
+import type { MenuItem, MenuModifierList } from "@/types/menu";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+
+function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[]> {
+  const init: Record<string, string[]> = {};
+  for (const list of lists) {
+    if (list.role === "size") {
+      const kid =
+        list.modifiers.find((m) => /^kid$/i.test(m.name)) ??
+        list.modifiers.find((m) => m.price.amount === 0) ??
+        list.modifiers[0];
+      init[list.id] = kid ? [kid.id] : [];
+      continue;
+    }
+    if (list.selectionType === "SINGLE" && list.minSelected > 0) {
+      init[list.id] = list.modifiers[0] ? [list.modifiers[0].id] : [];
+    } else {
+      init[list.id] = [];
+    }
+  }
+  return init;
+}
 
 export function CupCustomizer({ item }: { item: MenuItem }) {
   const router = useRouter();
   const { addLine } = useCart();
-  const defaultVariation =
-    item.variations.find((v) => v.name === "M") ?? item.variations[0];
-  const [variationId, setVariationId] = useState(defaultVariation?.id ?? "");
-  const [selections, setSelections] = useState<Record<string, string[]>>(() => {
-    const init: Record<string, string[]> = {};
-    for (const list of item.modifierLists) {
-      if (list.selectionType === "SINGLE" && list.minSelected > 0) {
-        init[list.id] = list.modifiers[0] ? [list.modifiers[0].id] : [];
-      } else {
-        init[list.id] = [];
-      }
-    }
-    return init;
-  });
+  // Size lives on modifiers (+$1.01 etc). Variation is the cup base ($4.99).
+  const [variationId] = useState(item.variations[0]?.id ?? "");
+  const [selections, setSelections] = useState<Record<string, string[]>>(() =>
+    defaultSizeSelection(item.modifierLists),
+  );
   const [error, setError] = useState<string | null>(null);
 
   const preview = useMemo(() => {
@@ -44,11 +55,15 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
       preview.modifiers.reduce((s, m) => s + m.priceCents, 0)
     : 0;
 
-  function toggle(listId: string, modId: string, list: (typeof item.modifierLists)[0]) {
+  function toggle(listId: string, modId: string, list: MenuModifierList) {
     setSelections((prev) => {
       const current = prev[listId] ?? [];
       if (list.selectionType === "SINGLE") {
-        return { ...prev, [listId]: current.includes(modId) && list.minSelected === 0 ? [] : [modId] };
+        return {
+          ...prev,
+          [listId]:
+            current.includes(modId) && list.minSelected === 0 ? [] : [modId],
+        };
       }
       if (current.includes(modId)) {
         return { ...prev, [listId]: current.filter((id) => id !== modId) };
@@ -95,24 +110,14 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
     );
   }
 
+  const basePrice = item.variations[0]?.price.amount ?? 0;
+
   return (
     <div className="customizer">
-      <fieldset className="sheet">
-        <legend>Size</legend>
-        <div className="chip-row">
-          {item.variations.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              className={`chip ${variationId === v.id ? "chip--on" : ""}`}
-              onClick={() => setVariationId(v.id)}
-            >
-              {v.name}
-              <span>{formatUsd(v.price.amount)}</span>
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      <p className="customizer__base">
+        Cup base {formatUsd(basePrice)}
+        <span> · size &amp; mix-ins from catalog modifiers</span>
+      </p>
 
       {item.modifierLists.map((list) => (
         <fieldset key={list.id} className="sheet">
@@ -125,6 +130,10 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
           <div className="chip-row chip-row--wrap">
             {list.modifiers.map((m) => {
               const on = (selections[list.id] ?? []).includes(m.id);
+              const showPrice =
+                list.role === "size"
+                  ? true
+                  : m.price.amount > 0;
               return (
                 <button
                   key={m.id}
@@ -133,8 +142,12 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
                   onClick={() => toggle(list.id, m.id, list)}
                 >
                   {m.name}
-                  {m.price.amount > 0 ? (
-                    <span>+{formatUsd(m.price.amount)}</span>
+                  {showPrice ? (
+                    <span>
+                      {m.price.amount === 0
+                        ? formatUsd(0)
+                        : `+${formatUsd(m.price.amount)}`}
+                    </span>
                   ) : null}
                 </button>
               );

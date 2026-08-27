@@ -52,5 +52,6 @@ export const NOPA = {
   name: "NOPA",
   address: "608 Divisadero St",
   phone: "415-859-3112",
-  hours: "11:00–9:50 daily",
+  /** Home hours lock — not Square Online “Tomorrow …” and not lovingcup.com “WE'RE OPEN”. */
+  hours: "11–10 daily",
 } as const;

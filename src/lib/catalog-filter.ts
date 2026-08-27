@@ -1,7 +1,7 @@
 /**
- * Shared-catalog bleed filter.
+ * Shared-catalog bleed + design-lock hide rules.
  * Catalog is shared with apizza — never render pizza/side SKUs.
- * Also enforces `akid` sold-out and NOPA location presence.
+ * Hide empty `astarter`. Out of this pass: rice pudding (+ missing printed flavors not invented).
  */
 
 const BLEED_NAME_PATTERNS: RegExp[] = [
@@ -17,7 +17,12 @@ const BLEED_NAME_PATTERNS: RegExp[] = [
   /\bgarlic\s*knots?\b/i,
 ];
 
-/** Positive signals that an item belongs on the Loving Cup froyo menu. */
+/** Items to hide entirely this pass (empty stubs / out-of-scope). */
+const HIDDEN_ITEM_PATTERNS: RegExp[] = [
+  /\bastarter\b/i,
+  /\brice\s*pudding\b/i,
+];
+
 const FROYO_CATEGORY_PATTERNS: RegExp[] = [
   /\bfroyo\b/i,
   /\bfrozen\s*yogurt\b/i,
@@ -39,9 +44,6 @@ const FROYO_ITEM_PATTERNS: RegExp[] = [
   /\byogurt\b/i,
 ];
 
-const SIZE_HINT =
-  /\b(kid|kids?|small|sm|medium|med|large|lg|pint|s|m|l)\b/i;
-
 export function isAkidSoldOut(opts: {
   name?: string | null;
   abbreviation?: string | null;
@@ -57,12 +59,17 @@ export function isAkidSoldOut(opts: {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  // Catalog item / SKU `akid` stays Sold out.
   return /\bakid\b/.test(hay);
 }
 
 export function isSharedCatalogBleed(name: string): boolean {
   return BLEED_NAME_PATTERNS.some((re) => re.test(name));
+}
+
+/** Empty `astarter`, rice pudding (out of pass), etc. */
+export function shouldHideCatalogItem(name: string, sku?: string | null): boolean {
+  const hay = `${name} ${sku ?? ""}`;
+  return HIDDEN_ITEM_PATTERNS.some((re) => re.test(hay));
 }
 
 export function looksLikeFroyoCategory(name: string): boolean {
@@ -74,14 +81,12 @@ export function looksLikeFroyoItem(
   categoryNames: string[],
 ): boolean {
   if (isSharedCatalogBleed(name)) return false;
+  if (shouldHideCatalogItem(name)) return false;
   if (categoryNames.some(looksLikeFroyoCategory)) return true;
   if (FROYO_ITEM_PATTERNS.some((re) => re.test(name))) return true;
-  // Size-named cups with no pizza bleed still qualify when in a soft category.
-  if (SIZE_HINT.test(name) && categoryNames.length === 0) return false;
   return false;
 }
 
-/** Item is available at NOPA when present everywhere or listed for location. */
 export function isPresentAtLocation(
   obj: {
     presentAtAllLocations?: boolean | null;
@@ -95,6 +100,13 @@ export function isPresentAtLocation(
   if (obj.presentAtLocationIds && obj.presentAtLocationIds.length > 0) {
     return obj.presentAtLocationIds.includes(locationId);
   }
-  // If Square omits location fields, treat as available (location filter applied upstream when possible).
   return true;
+}
+
+export function normalizeModifierName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }

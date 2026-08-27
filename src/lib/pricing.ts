@@ -21,7 +21,7 @@ export function buildCartLine(opts: {
     throw new Error(`${opts.item.name} is sold out.`);
   }
   const variation = opts.item.variations.find((v) => v.id === opts.variationId);
-  if (!variation) throw new Error("Invalid size variation.");
+  if (!variation) throw new Error("Invalid catalog variation.");
 
   const modifiers = opts.item.modifierLists.flatMap((list) => {
     const selected = opts.selections[list.id] ?? [];

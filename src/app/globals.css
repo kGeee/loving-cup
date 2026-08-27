@@ -369,6 +369,16 @@ code {
   gap: 1.25rem;
 }
 
+.customizer__base {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.customizer__base span {
+  font-weight: 400;
+}
+
 .sheet {
   margin: 0;
   padding: 1rem 0 0;

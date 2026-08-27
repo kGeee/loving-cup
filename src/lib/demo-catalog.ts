@@ -1,9 +1,17 @@
 /**
- * Demo/POC catalog — sample data only, prices locked to the brief's live Square prices.
- * Kid $4.99 / S $6 / M $7 / L $8 / Pint $12 · extra mix-in +$0.75 · cone $1.25
- * No apizza SKUs. `akid` sold out.
+ * Demo/POC catalog — labeled sample data, gated off the live Square path.
+ *
+ * Mirrors live Square Catalog pricing model (NOT the /menu JPEG totals):
+ *   Cup base $4.99 + size modifiers:
+ *     Kid +$0 · Small +$1.01 · Medium +$2.01 · Large +$3.01 · Pint +$7.01
+ *   Extra mix-in +$0.75 · Cone +$1.25
+ * Never hardcode $6 / $7 / $8 / $12 as variation prices.
+ *
+ * One mix-in chip list (toasted coconut once). `akid` sold out. No apizza SKUs.
+ * Out of this pass: missing printed flavors + rice pudding (not invented here).
  */
 
+import { normalizeMenuItem } from "@/lib/normalize-modifiers";
 import type {
   CatalogPayload,
   MenuItem,
@@ -13,13 +21,26 @@ import type {
 
 const USD = (cents: number) => ({ amount: cents, currency: "USD" as const });
 
-const SIZE_VARIATIONS: MenuVariation[] = [
-  { id: "var_kid", name: "Kid", price: USD(499), ordinal: 0, sku: "size-kid" },
-  { id: "var_s", name: "S", price: USD(600), ordinal: 1, sku: "size-s" },
-  { id: "var_m", name: "M", price: USD(700), ordinal: 2, sku: "size-m" },
-  { id: "var_l", name: "L", price: USD(800), ordinal: 3, sku: "size-l" },
-  { id: "var_pint", name: "Pint", price: USD(1200), ordinal: 4, sku: "size-pint" },
-];
+/** Single catalog variation — cup base from Square model. */
+const CUP_VARIATION: MenuVariation = {
+  id: "var_cup",
+  name: "Cup",
+  sku: "cup-base",
+  price: USD(499),
+  ordinal: 0,
+};
+
+/**
+ * Size modifiers from live Square walk-through.
+ * Resulting totals (base + mod) are informational only — UI shows base + modifier amounts.
+ */
+const SIZE_MODIFIERS = [
+  { key: "kid", name: "Kid", cents: 0 },
+  { key: "small", name: "Small", cents: 101 },
+  { key: "medium", name: "Medium", cents: 201 },
+  { key: "large", name: "Large", cents: 301 },
+  { key: "pint", name: "Pint", cents: 701 },
+] as const;
 
 const BASES = [
   "Nonfat Tart",
@@ -28,6 +49,7 @@ const BASES = [
   "Dairy-Free Coconut",
 ];
 
+/** One mix-in sheet — toasted coconut once (not duplicated grids). */
 const MIX_INS = [
   "Fresh Strawberries",
   "Blueberries",
@@ -39,105 +61,95 @@ const MIX_INS = [
   "Hot Fudge",
   "Sprinkles",
   "Almonds",
-  "Coconut Flakes",
+  "Toasted Coconut",
   "Gummy Bears",
 ];
 
-function cupModifierLists(itemKey: string): MenuModifierList[] {
+function sizeList(itemKey: string): MenuModifierList {
+  return {
+    id: `ml_${itemKey}_size`,
+    name: "Size",
+    role: "size",
+    selectionType: "SINGLE",
+    minSelected: 1,
+    maxSelected: 1,
+    modifiers: SIZE_MODIFIERS.map((s, i) => ({
+      id: `mod_${itemKey}_size_${s.key}`,
+      name: s.name,
+      price: USD(s.cents),
+      ordinal: i,
+    })),
+  };
+}
+
+function baseList(itemKey: string): MenuModifierList {
+  return {
+    id: `ml_${itemKey}_base`,
+    name: "Base",
+    role: "base",
+    selectionType: "SINGLE",
+    minSelected: 1,
+    maxSelected: 1,
+    modifiers: BASES.map((name, i) => ({
+      id: `mod_${itemKey}_base_${i}`,
+      name,
+      price: USD(0),
+      ordinal: i,
+    })),
+  };
+}
+
+function mixinList(
+  itemKey: string,
+  opts?: { includedCount?: number; name?: string },
+): MenuModifierList {
+  const included = opts?.includedCount ?? 0;
+  return {
+    id: `ml_${itemKey}_mixin`,
+    name: opts?.name ?? (included > 0 ? `Mix-ins (${included} included)` : "Mix-ins"),
+    role: "mixin",
+    selectionType: "MULTIPLE",
+    minSelected: 0,
+    maxSelected: 10,
+    includedCount: included > 0 ? included : undefined,
+    modifiers: MIX_INS.map((name, i) => ({
+      id: `mod_${itemKey}_mixin_${i}`,
+      name,
+      price: USD(75),
+      ordinal: i,
+    })),
+  };
+}
+
+function coneList(itemKey: string): MenuModifierList {
+  return {
+    id: `ml_${itemKey}_cone`,
+    name: "Cone",
+    role: "cone",
+    selectionType: "SINGLE",
+    minSelected: 0,
+    maxSelected: 1,
+    modifiers: [
+      {
+        id: `mod_${itemKey}_cone`,
+        name: "Sugar cone",
+        price: USD(125),
+        ordinal: 0,
+      },
+    ],
+  };
+}
+
+function cupSheets(itemKey: string, cyob = false): MenuModifierList[] {
   return [
-    {
-      id: `ml_${itemKey}_base`,
-      name: "Base",
-      selectionType: "SINGLE",
-      minSelected: 1,
-      maxSelected: 1,
-      modifiers: BASES.map((name, i) => ({
-        id: `mod_${itemKey}_base_${i}`,
-        name,
-        price: USD(0),
-        ordinal: i,
-      })),
-    },
-    {
-      id: `ml_${itemKey}_extra`,
-      name: "Extra mix-in",
-      selectionType: "MULTIPLE",
-      minSelected: 0,
-      maxSelected: 8,
-      modifiers: MIX_INS.map((name, i) => ({
-        id: `mod_${itemKey}_extra_${i}`,
-        name,
-        price: USD(75),
-        ordinal: i,
-      })),
-    },
-    {
-      id: `ml_${itemKey}_cone`,
-      name: "Cone",
-      selectionType: "SINGLE",
-      minSelected: 0,
-      maxSelected: 1,
-      modifiers: [
-        {
-          id: `mod_${itemKey}_cone`,
-          name: "Sugar cone",
-          price: USD(125),
-          ordinal: 0,
-        },
-      ],
-    },
+    sizeList(itemKey),
+    baseList(itemKey),
+    mixinList(itemKey, cyob ? { includedCount: 2 } : undefined),
+    coneList(itemKey),
   ];
 }
 
-function cyobModifierLists(): MenuModifierList[] {
-  return [
-    {
-      id: "ml_cyob_base",
-      name: "Base",
-      selectionType: "SINGLE",
-      minSelected: 1,
-      maxSelected: 1,
-      modifiers: BASES.map((name, i) => ({
-        id: `mod_cyob_base_${i}`,
-        name,
-        price: USD(0),
-        ordinal: i,
-      })),
-    },
-    {
-      id: "ml_cyob_mixin",
-      name: "Mix-ins (2 included)",
-      selectionType: "MULTIPLE",
-      minSelected: 0,
-      maxSelected: 10,
-      includedCount: 2,
-      modifiers: MIX_INS.map((name, i) => ({
-        id: `mod_cyob_mixin_${i}`,
-        name,
-        // Listed at +$0.75; pricing applies only beyond includedCount.
-        price: USD(75),
-        ordinal: i,
-      })),
-    },
-    {
-      id: "ml_cyob_cone",
-      name: "Cone",
-      selectionType: "SINGLE",
-      minSelected: 0,
-      maxSelected: 1,
-      modifiers: [
-        {
-          id: "mod_cyob_cone",
-          name: "Sugar cone",
-          price: USD(125),
-          ordinal: 0,
-        },
-      ],
-    },
-  ];
-}
-
-/** Sample signature cup names for demo only — not a live Square dump. */
+/** Sample signature names for demo only — not filling the 7 missing printed flavors. */
 const SIGNATURE_NAMES = [
   "Berry Bliss",
   "Cookies & Cream Dream",
@@ -158,23 +170,26 @@ const SIGNATURE_NAMES = [
 
 function signatureItem(name: string, index: number): MenuItem {
   const key = `sig_${index}`;
-  return {
+  return normalizeMenuItem({
     id: `item_${key}`,
     name,
-    description: "Signature cup — sample demo item. Customize size, base, extras, cone.",
+    description:
+      "Signature cup (demo). Base $4.99 + size modifiers from the Square model.",
     categoryIds: ["cat_signature"],
     categoryNames: ["Signature Cups"],
-    variations: SIZE_VARIATIONS.map((v) => ({
-      ...v,
-      id: `${v.id}_${key}`,
-      sku: `${v.sku}-${key}`,
-    })),
-    modifierLists: cupModifierLists(key),
+    variations: [
+      {
+        ...CUP_VARIATION,
+        id: `var_cup_${key}`,
+        sku: `cup-${key}`,
+      },
+    ],
+    modifierLists: cupSheets(key),
     soldOut: false,
-  };
+  });
 }
 
-const AKID: MenuItem = {
+const AKID: MenuItem = normalizeMenuItem({
   id: "item_akid",
   name: "akid",
   description: "Sold out — cannot be ordered.",
@@ -183,31 +198,33 @@ const AKID: MenuItem = {
   variations: [
     {
       id: "var_akid",
-      name: "Kid",
+      name: "Cup",
       sku: "akid",
       price: USD(499),
       ordinal: 0,
     },
   ],
-  modifierLists: cupModifierLists("akid"),
+  modifierLists: cupSheets("akid"),
   soldOut: true,
-};
+});
 
-const CYOB: MenuItem = {
+const CYOB: MenuItem = normalizeMenuItem({
   id: "item_cyob",
   name: "Create Your Own Bowl (CYOB)",
   description:
-    "2 mix-ins included. Extra mix-ins +$0.75 each. Cone +$1.25. Sample demo item.",
+    "Demo CYOB. Base $4.99 + size mods. 2 mix-ins included; extras +$0.75; cone +$1.25.",
   categoryIds: ["cat_cyob"],
   categoryNames: ["CYOB"],
-  variations: SIZE_VARIATIONS.map((v) => ({
-    ...v,
-    id: `${v.id}_cyob`,
-    sku: `${v.sku}-cyob`,
-  })),
-  modifierLists: cyobModifierLists(),
+  variations: [
+    {
+      ...CUP_VARIATION,
+      id: "var_cup_cyob",
+      sku: "cup-cyob",
+    },
+  ],
+  modifierLists: cupSheets("cyob", true),
   soldOut: false,
-};
+});
 
 export const DEMO_CATALOG_DISCOUNT = {
   id: "demo_discount_rewards",
@@ -234,7 +251,7 @@ export function getDemoCatalog(): CatalogPayload {
   };
 }
 
-/** Line-item modifier price for CYOB: first `includedCount` free, then +$0.75. */
+/** Line-item modifier price for CYOB: first `includedCount` free, then catalog price. */
 export function pricedModifiersForLine(
   modifierList: MenuModifierList,
   selectedModifierIds: string[],
