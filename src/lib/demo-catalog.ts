@@ -47,21 +47,18 @@ const BASES = [
 ] as const;
 
 /**
- * Printed mix-in chips (extras +$0.75). Toasted coconut once.
+ * Printed mix-in chips (25 = 13 Square + 12 nosku). Extras +$0.75.
  * Square-subset names stay orderable with demo SKU ids.
  * The 12 board-only names below are grey (`noSku`) — demo still +$0.75; never POST live.
  * Unmapped recipe names (Mango, Heath Bar, …) are locked chips on their cup only.
  */
 const SQUARE_MIX_INS = [
-  "Fresh Strawberries",
+  "Strawberries",
   "Blueberries",
-  "Banana",
-  "Oreo Cookie",
-  "Graham Cracker",
+  "Bananas",
+  "Oreos",
   "Chocolate Chips",
-  "Hot Fudge",
-  "Sprinkles",
-  "Almonds",
+  "Rainbow Sprinkles",
   "Toasted Coconut",
   "Gummy Bears",
   "Nutella",
@@ -93,12 +90,18 @@ const NOSKU_KEYS = new Set(NOSKU_MIX_INS.map((n) => n.toLowerCase()));
 
 /** Recipe ingredient → printed MIX_INS name when the chip already exists. */
 const RECIPE_ALIASES: Record<string, (typeof MIX_INS)[number]> = {
-  oreos: "Oreo Cookie",
-  oreo: "Oreo Cookie",
+  // Dirty Hipster / Thinner Mint / Monster Cookie: Oreos → Oreos (locked w/ Nutella).
+  oreos: "Oreos",
+  oreo: "Oreos",
+  "oreo cookie": "Oreos",
   "jr mints": "Jr Mints",
   "junior mints": "Jr Mints",
-  "fresh strawberries": "Fresh Strawberries",
-  strawberries: "Fresh Strawberries",
+  "fresh strawberries": "Strawberries",
+  strawberries: "Strawberries",
+  banana: "Bananas",
+  bananas: "Bananas",
+  sprinkles: "Rainbow Sprinkles",
+  "rainbow sprinkles": "Rainbow Sprinkles",
   // Salted Caramel aliases over Caramel Sauce (Salty Dog / Crunchy Cereal).
   "caramel sauce": "Salted Caramel",
   "salted caramel sauce": "Salted Caramel",
@@ -311,6 +314,7 @@ const ORDERABLE_CUPS: NamedCup[] = [
     key: "lone_wolf",
     name: "Lone Wolf",
     ingredients: "Chocolate + Almond Butter + Heath Bar",
+    imageUrl: "/cup-lone-wolf.webp",
   },
   {
     key: "salty_dog",
@@ -322,6 +326,7 @@ const ORDERABLE_CUPS: NamedCup[] = [
     key: "blueberry_dream",
     name: "Blueberry Dream",
     ingredients: "Vanilla + Blueberries + Toasted Coconut",
+    imageUrl: "/cup-blueberry-dream.webp",
   },
   {
     key: "dirty_hipster",

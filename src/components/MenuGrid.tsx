@@ -42,13 +42,15 @@ export function MenuGrid({ items }: { items: MenuItem[] }) {
       <ul className="menu-grid">
         {items.map((item, i) => {
           const price = basePriceCents(item);
+          // Rows without a set photo: 72px 1:1 cup crop (mix-ins out), not beige fill.
+          const photoSrc =
+            item.imageUrl ??
+            (i % 2 === 0 ? "/cup-fallback-a.webp" : "/cup-fallback-b.webp");
           const row = (
             <>
-              <div className="menu-row__photo" aria-hidden={!item.imageUrl}>
-                {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" width={72} height={72} />
-                ) : null}
+              <div className="menu-row__photo" aria-hidden>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoSrc} alt="" width={72} height={72} />
               </div>
               <div className="menu-row__text">
                 <h3 className="menu-row__name">
