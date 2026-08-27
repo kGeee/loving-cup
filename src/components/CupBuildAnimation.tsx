@@ -258,14 +258,6 @@ function expandBits(
   return bits.slice(0, 12);
 }
 
-function phaseAt(ms: number): BuildPhase {
-  if (ms < 550) return "cup";
-  if (ms < 1300) return "pour";
-  if (ms < 2200) return "toppings";
-  if (ms < 2650) return "mix";
-  return "reveal";
-}
-
 export function CupBuildAnimation({
   order,
   reducedMotion,
@@ -293,27 +285,16 @@ export function CupBuildAnimation({
       finishedRef.current();
       return;
     }
-    let cancelled = false;
-    let elapsed = 0;
-    let last = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      if (cancelled) return;
-      // Cap delta so background-tab rAF throttling can't skip the whole make.
-      const delta = Math.min(Math.max(now - last, 0), 48);
-      last = now;
-      elapsed += delta;
-      setPhase(phaseAt(elapsed));
-      if (elapsed >= CUP_BUILD_MS) {
-        finishedRef.current();
-        return;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    setPhase("cup");
+    const timers = [
+      window.setTimeout(() => setPhase("pour"), 550),
+      window.setTimeout(() => setPhase("toppings"), 1300),
+      window.setTimeout(() => setPhase("mix"), 2200),
+      window.setTimeout(() => setPhase("reveal"), 2650),
+      window.setTimeout(() => finishedRef.current(), CUP_BUILD_MS),
+    ];
     return () => {
-      cancelled = true;
-      cancelAnimationFrame(raf);
+      for (const t of timers) window.clearTimeout(t);
     };
   }, [skipMotion]);
 
