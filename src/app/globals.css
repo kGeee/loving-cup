@@ -491,6 +491,29 @@ code {
   transform: none;
 }
 
+.chip--locked,
+.chip--locked:disabled {
+  opacity: 1;
+  cursor: default;
+  text-decoration: none;
+}
+
+.chip--locked.chip--on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.btn--berry-add {
+  min-width: 5.5rem;
+  background: var(--berry);
+  color: #fff;
+}
+
+.btn--berry-add:hover {
+  filter: brightness(0.92);
+}
+
 .customizer__footer {
   display: flex;
   align-items: center;

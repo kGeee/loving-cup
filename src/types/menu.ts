@@ -50,6 +50,12 @@ export interface MenuItem {
   /** Item-level sold out (rare). Prefer modifier.soldOut for size `akid`. */
   soldOut: boolean;
   imageUrl?: string;
+  /**
+   * Named-cup locked recipe mix-in modifier IDs (included).
+   * When set, pricing uses these IDs only — not MYO’s first-N-selected-free.
+   * Demo catalog only; live Square never invents demo modifier IDs.
+   */
+  recipeMixinIds?: string[];
 }
 
 export interface MenuCategory {

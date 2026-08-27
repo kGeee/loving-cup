@@ -40,6 +40,11 @@ function dropAkidSizeModifiers(modifiers: MenuModifier[]): MenuModifier[] {
   return modifiers.filter((m) => !isAkidSizeModifier(m.name));
 }
 
+/** akid is sold out and must not appear as a size chip. */
+function dropAkidSizeModifiers(modifiers: MenuModifier[]): MenuModifier[] {
+  return modifiers.filter((m) => !isAkidSizeModifier(m.name));
+}
+
 /**
  * Deduplicate by normalized name.
  * Coconut → single "Toasted Coconut".

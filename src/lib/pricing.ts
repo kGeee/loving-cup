@@ -34,9 +34,11 @@ export function buildCartLine(opts: {
     }
   }
 
+  const recipeMixinIds = opts.item.recipeMixinIds;
+
   const modifiers = opts.item.modifierLists.flatMap((list) => {
     const selected = opts.selections[list.id] ?? [];
-    return pricedFromList(list, selected).map((p) => ({
+    return pricedFromList(list, selected, recipeMixinIds).map((p) => ({
       modifierListId: list.id,
       modifierId: p.modifierId,
       name: p.name,
@@ -60,7 +62,11 @@ export function buildCartLine(opts: {
 function pricedFromList(
   list: MenuModifierList,
   selectedIds: string[],
+  recipeMixinIds?: string[],
 ): { modifierId: string; name: string; priceCents: number }[] {
+  if (list.role === "mixin" && recipeMixinIds && recipeMixinIds.length > 0) {
+    return pricedModifiersForLine(list, selectedIds, recipeMixinIds);
+  }
   if (list.includedCount && list.includedCount > 0) {
     return pricedModifiersForLine(list, selectedIds);
   }
