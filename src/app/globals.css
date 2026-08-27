@@ -984,14 +984,6 @@ button.menu-row__body--btn {
   }
 }
 
-@keyframes hero-ken {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.04);
-  }
-}
 
 @media (max-width: 640px) {
   .menu-row__body {
