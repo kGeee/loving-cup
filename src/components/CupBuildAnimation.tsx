@@ -1,7 +1,7 @@
 "use client";
 
 import type { AppOrder, CartLine, CartModifierSelection } from "@/types/menu";
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 /** Immersive cup-build wall-clock — slow enough to read the make. */
 export const CUP_BUILD_MS = 3000;
@@ -114,6 +114,9 @@ type ToppingSpec = {
   kind: ToppingKind;
   colors: [string, string];
 };
+
+/** JS-driven phases — immune to CSS animation-duration overrides. */
+export type BuildPhase = "cup" | "pour" | "toppings" | "mix" | "reveal";
 
 function mixinKey(name: string): string {
   return name
@@ -236,8 +239,9 @@ function toppingsForOrder(order: AppOrder): ToppingSpec[] {
     }));
 }
 
-/** Extra sprinkle rods for rainbow sprinkles so the cascade reads clearly. */
-function expandBits(toppings: ToppingSpec[]): Array<ToppingSpec & { bitKey: string }> {
+function expandBits(
+  toppings: ToppingSpec[],
+): Array<ToppingSpec & { bitKey: string }> {
   const bits: Array<ToppingSpec & { bitKey: string }> = [];
   for (const t of toppings) {
     bits.push({ ...t, bitKey: t.id });
@@ -247,43 +251,70 @@ function expandBits(toppings: ToppingSpec[]): Array<ToppingSpec & { bitKey: stri
         { ...t, bitKey: `${t.id}-c`, colors: ["#3d8bfd", "#f84030"] },
       );
     }
-    if (t.kind === "berry") {
+    if (t.kind === "berry" || t.kind === "cookie" || t.kind === "mint") {
       bits.push({ ...t, bitKey: `${t.id}-b` });
     }
   }
   return bits.slice(0, 12);
 }
 
+function phaseAt(ms: number): BuildPhase {
+  if (ms < 550) return "cup";
+  if (ms < 1300) return "pour";
+  if (ms < 2200) return "toppings";
+  if (ms < 2650) return "mix";
+  return "reveal";
+}
+
 export function CupBuildAnimation({
   order,
   reducedMotion,
   onFinished,
+  /** Force full play even when OS prefers reduced motion (dev / QA). */
+  forceMotion = false,
 }: {
   order: AppOrder;
   reducedMotion: boolean;
   onFinished: () => void;
+  forceMotion?: boolean;
 }) {
   const still = useMemo(() => cupStillForOrder(order), [order]);
   const yogurt = useMemo(() => yogurtForOrder(order), [order]);
   const toppings = useMemo(() => toppingsForOrder(order), [order]);
   const bits = useMemo(() => expandBits(toppings), [toppings]);
+  const skipMotion = reducedMotion && !forceMotion;
+  const [phase, setPhase] = useState<BuildPhase>(skipMotion ? "reveal" : "cup");
   const finishedRef = useRef(onFinished);
   finishedRef.current = onFinished;
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (skipMotion) {
+      setPhase("reveal");
       finishedRef.current();
       return;
     }
-    const t = window.setTimeout(() => finishedRef.current(), CUP_BUILD_MS);
-    return () => window.clearTimeout(t);
-  }, [reducedMotion]);
-
-  const modeClass = reducedMotion ? "cup-build--reduced" : "cup-build--play";
+    if (startedRef.current) return;
+    startedRef.current = true;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      setPhase(phaseAt(elapsed));
+      if (elapsed >= CUP_BUILD_MS) {
+        finishedRef.current();
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [skipMotion]);
 
   return (
     <div
-      className={`cup-build ${modeClass}`}
+      className={`cup-build cup-build--phase-${phase}${skipMotion ? " cup-build--reduced" : ""}${forceMotion ? " cup-build--force" : ""}`}
+      data-phase={phase}
       aria-hidden
       style={
         {
@@ -300,11 +331,8 @@ export function CupBuildAnimation({
           <div className="cup-build__stage">
             <div className="cup-build__glow" />
             <div className="cup-build__shadow" />
-
-            {/* Soft-serve pour stream — above everything during pour */}
             <div className="cup-build__stream" />
 
-            {/* Soft-serve mound sits ON the rim (visible above cup wall) */}
             <div className="cup-build__serve">
               <div className="cup-build__yogurt-mass" />
               <div className="cup-build__yogurt-coil cup-build__yogurt-coil--a" />
@@ -344,6 +372,7 @@ export function CupBuildAnimation({
                       ["--c1" as string]: t.colors[0],
                       ["--c2" as string]: t.colors[1],
                       ["--n" as string]: String(bits.length),
+                      ["--delay" as string]: `${i * 90}ms`,
                     } as CSSProperties
                   }
                 />

@@ -769,10 +769,8 @@ button.menu-row__body--btn {
 }
 
 /*
- * Immersive cup build — 280×300 · 3000ms wall-clock.
- * 0–550 branded cup settles · 500–1400 soft-serve pours onto rim ·
- * 1200–2300 chosen toppings cascade onto the swirl · 2200–2700 gentle mix ·
- * 2550–3000 soft crossfade into the finished order still.
+ * Immersive cup build — 280×300 · ~3000ms JS-driven phases.
+ * Phases: cup → pour → toppings → mix → reveal (CSS transitions, not delayed keyframes).
  */
 .cup-build {
   pointer-events: none;
@@ -830,6 +828,11 @@ button.menu-row__body--btn {
   height: 280px;
   transform-style: preserve-3d;
   transform: rotateX(12deg) rotateY(-6deg);
+  transition: transform 0.55s ease-in-out;
+}
+
+.cup-build--phase-mix .cup-build__stage {
+  transform: rotateX(12deg) rotateY(-18deg);
 }
 
 .cup-build__glow {
@@ -848,6 +851,14 @@ button.menu-row__body--btn {
   opacity: 0;
   filter: blur(10px);
   pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+
+.cup-build--phase-cup .cup-build__glow,
+.cup-build--phase-pour .cup-build__glow,
+.cup-build--phase-toppings .cup-build__glow,
+.cup-build--phase-mix .cup-build__glow {
+  opacity: 1;
 }
 
 .cup-build__shadow {
@@ -863,6 +874,18 @@ button.menu-row__body--btn {
   opacity: 0;
   transform: scaleX(0.65) translateZ(-24px);
   filter: blur(3px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cup-build--phase-cup .cup-build__shadow,
+.cup-build--phase-pour .cup-build__shadow,
+.cup-build--phase-toppings .cup-build__shadow,
+.cup-build--phase-mix .cup-build__shadow,
+.cup-build--phase-reveal .cup-build__shadow {
+  opacity: 1;
+  transform: scaleX(1) translateZ(-24px);
 }
 
 .cup-build__stream {
@@ -885,9 +908,25 @@ button.menu-row__body--btn {
     0 0 12px rgba(255, 255, 255, 0.45),
     inset 0 0 4px rgba(255, 255, 255, 0.35);
   z-index: 9;
+  transition:
+    height 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease,
+    transform 0.45s ease;
 }
 
-/* Soft-serve sits ON the rim — always in front of the cup wall */
+.cup-build--phase-pour .cup-build__stream {
+  opacity: 1;
+  height: 78px;
+}
+
+.cup-build--phase-toppings .cup-build__stream,
+.cup-build--phase-mix .cup-build__stream,
+.cup-build--phase-reveal .cup-build__stream {
+  opacity: 0;
+  height: 0;
+  transform: translateY(40px) scaleX(0.4);
+}
+
 .cup-build__serve {
   position: absolute;
   left: 50%;
@@ -896,10 +935,30 @@ button.menu-row__body--btn {
   height: 92px;
   margin-left: -54px;
   transform-origin: 50% 100%;
-  transform: scale(0.15) translateY(28px);
+  transform: scale(0.12) translateY(30px);
   opacity: 0;
   z-index: 6;
   filter: drop-shadow(0 8px 10px rgba(60, 47, 41, 0.18));
+  transition:
+    opacity 0.45s ease,
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cup-build--phase-pour .cup-build__serve,
+.cup-build--phase-toppings .cup-build__serve,
+.cup-build--phase-mix .cup-build__serve {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.cup-build--phase-mix .cup-build__serve {
+  transform: scale(1.05) translateY(-2px) rotate(-8deg);
+}
+
+.cup-build--phase-reveal .cup-build__serve {
+  opacity: 0;
+  transform: scale(1.02) translateY(-4px);
+  transition-duration: 0.4s;
 }
 
 .cup-build__yogurt-mass {
@@ -962,9 +1021,19 @@ button.menu-row__body--btn {
     var(--yogurt-light) 0%,
     var(--yogurt-mid) 75%
   );
-  transform: rotate(18deg) scale(0.6);
+  transform: rotate(18deg) scale(0.4) translateY(10px);
   opacity: 0;
   box-shadow: 0 3px 6px rgba(60, 47, 41, 0.12);
+  transition:
+    opacity 0.4s ease 0.35s,
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.35s;
+}
+
+.cup-build--phase-pour .cup-build__yogurt-peak,
+.cup-build--phase-toppings .cup-build__yogurt-peak,
+.cup-build--phase-mix .cup-build__yogurt-peak {
+  opacity: 1;
+  transform: rotate(18deg) scale(1) translateY(0);
 }
 
 .cup-build__yogurt-flecks {
@@ -993,6 +1062,26 @@ button.menu-row__body--btn {
   opacity: 0;
   transform: translateY(28px) scale(0.92) rotateY(16deg);
   z-index: 3;
+  transition:
+    opacity 0.45s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cup-build--phase-cup .cup-build__cup,
+.cup-build--phase-pour .cup-build__cup,
+.cup-build--phase-toppings .cup-build__cup,
+.cup-build--phase-mix .cup-build__cup {
+  opacity: 1;
+  transform: translateY(0) scale(1) rotateY(0deg);
+}
+
+.cup-build--phase-mix .cup-build__cup {
+  transform: translateY(0) scale(1) rotateY(-28deg);
+}
+
+.cup-build--phase-reveal .cup-build__cup {
+  opacity: 0;
+  transition-duration: 0.4s;
 }
 
 .cup-build__rim {
@@ -1105,6 +1194,12 @@ button.menu-row__body--btn {
   inset: 0;
   z-index: 10;
   pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+
+.cup-build--phase-reveal .cup-build__toppings {
+  opacity: 0;
 }
 
 .cup-build__bit {
@@ -1114,9 +1209,22 @@ button.menu-row__body--btn {
   width: 20px;
   height: 20px;
   opacity: 0;
-  transform: translate3d(0, -40px, 50px) scale(1.45) rotate(-14deg);
+  transform: translate3d(0, -44px, 50px) scale(1.45) rotate(-14deg);
   filter: drop-shadow(0 4px 5px rgba(60, 47, 41, 0.28));
-  will-change: transform, opacity;
+  transition:
+    opacity 0.35s ease var(--delay, 0ms),
+    transform 0.55s cubic-bezier(0.2, 0.85, 0.25, 1) var(--delay, 0ms);
+}
+
+.cup-build--phase-toppings .cup-build__bit,
+.cup-build--phase-mix .cup-build__bit {
+  opacity: 1;
+  transform: translate3d(
+      calc((var(--i, 0) - 3) * 5px),
+      calc(72px + (var(--i, 0) % 3) * 5px),
+      10px
+    )
+    scale(0.82) rotate(calc(var(--i, 0) * 14deg));
 }
 
 .cup-build__bit--berry {
@@ -1221,65 +1329,20 @@ button.menu-row__body--btn {
   box-shadow: 0 22px 36px rgba(60, 47, 41, 0.28);
   z-index: 12;
   border-radius: 2px;
-  /* Soft edge so the still doesn't read as a harsh white card */
   -webkit-mask-image: radial-gradient(
     closest-side,
     #000 72%,
     transparent 100%
   );
   mask-image: radial-gradient(closest-side, #000 72%, transparent 100%);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
 }
 
-/* —— Play timeline (3000ms) —— */
-.cup-build--play .cup-build__glow {
-  animation: cup-glow-in 1000ms ease-out 180ms forwards;
-}
-
-.cup-build--play .cup-build__shadow {
-  animation: cup-shadow-in 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.cup-build--play .cup-build__cup {
-  animation:
-    cup-settle 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
-    cup-mix-turn 550ms ease-in-out 2150ms forwards,
-    cup-fade-out 420ms ease-out 2600ms forwards;
-}
-
-.cup-build--play .cup-build__stream {
-  animation: cup-stream 950ms cubic-bezier(0.4, 0, 0.2, 1) 500ms forwards;
-}
-
-.cup-build--play .cup-build__serve {
-  animation:
-    cup-serve-rise 900ms cubic-bezier(0.22, 1, 0.36, 1) 580ms forwards,
-    cup-mix-serve 550ms ease-in-out 2150ms forwards,
-    cup-fade-out 420ms ease-out 2600ms forwards;
-}
-
-.cup-build--play .cup-build__yogurt-peak {
-  animation: cup-peak-form 480ms cubic-bezier(0.22, 1, 0.36, 1) 1100ms forwards;
-}
-
-.cup-build--play .cup-build__bit {
-  animation:
-    cup-bit-drop 580ms cubic-bezier(0.2, 0.85, 0.25, 1)
-      calc(1200ms + (var(--i, 0) * 90ms)) forwards,
-    cup-bit-nest 520ms ease-in-out
-      calc(1850ms + (var(--i, 0) * 35ms)) forwards;
-}
-
-.cup-build--play .cup-build__toppings {
-  animation: cup-fade-out 420ms ease-out 2600ms forwards;
-}
-
-.cup-build--play .cup-build__reveal {
-  animation: cup-reveal 450ms ease-out 2550ms forwards;
-}
-
-.cup-build--reduced .cup-build__shadow {
+.cup-build--phase-reveal .cup-build__reveal {
   opacity: 1;
-  transform: scaleX(1);
+  transform: scale(1);
 }
 
 .cup-build--reduced .cup-build__cup,
@@ -1290,198 +1353,31 @@ button.menu-row__body--btn {
   display: none;
 }
 
+.cup-build--reduced .cup-build__shadow {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
 .cup-build--reduced .cup-build__reveal {
   opacity: 1;
   transform: scale(1);
   -webkit-mask-image: none;
   mask-image: none;
-}
-
-@keyframes cup-glow-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes cup-shadow-in {
-  from {
-    opacity: 0;
-    transform: scaleX(0.65) translateZ(-24px);
-  }
-  to {
-    opacity: 1;
-    transform: scaleX(1) translateZ(-24px);
-  }
-}
-
-@keyframes cup-settle {
-  0% {
-    opacity: 0;
-    transform: translateY(28px) scale(0.92) rotateY(16deg);
-  }
-  72% {
-    opacity: 1;
-    transform: translateY(-3px) scale(1.02) rotateY(-3deg);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1) rotateY(0deg);
-  }
-}
-
-@keyframes cup-stream {
-  0% {
-    opacity: 0;
-    height: 0;
-  }
-  14% {
-    opacity: 1;
-    height: 64px;
-  }
-  55% {
-    opacity: 1;
-    height: 78px;
-  }
-  100% {
-    opacity: 0;
-    height: 8px;
-    transform: translateY(54px) scaleX(0.35);
-  }
-}
-
-@keyframes cup-serve-rise {
-  0% {
-    opacity: 0;
-    transform: scale(0.15) translateY(28px);
-  }
-  55% {
-    opacity: 1;
-    transform: scale(0.92) translateY(4px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes cup-peak-form {
-  from {
-    opacity: 0;
-    transform: rotate(18deg) scale(0.45) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: rotate(18deg) scale(1) translateY(0);
-  }
-}
-
-@keyframes cup-bit-drop {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, -40px, 50px) scale(1.45) rotate(-18deg);
-  }
-  65% {
-    opacity: 1;
-    transform: translate3d(0, 58px, 24px) scale(1.05) rotate(6deg);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 68px, 16px) scale(0.95) rotate(3deg);
-  }
-}
-
-@keyframes cup-bit-nest {
-  from {
-    opacity: 1;
-    transform: translate3d(0, 68px, 16px) scale(0.95) rotate(3deg);
-  }
-  to {
-    opacity: 0.95;
-    transform: translate3d(
-        calc((var(--i, 0) - 3) * 5px),
-        calc(74px + (var(--i, 0) % 3) * 4px),
-        8px
-      )
-      scale(0.78) rotate(calc(var(--i, 0) * 14deg));
-  }
-}
-
-@keyframes cup-mix-turn {
-  from {
-    transform: translateY(0) scale(1) rotateY(0deg);
-  }
-  to {
-    transform: translateY(0) scale(1) rotateY(-32deg);
-  }
-}
-
-@keyframes cup-mix-serve {
-  from {
-    transform: scale(1) translateY(0) rotate(0deg);
-  }
-  to {
-    transform: scale(1.04) translateY(-2px) rotate(-8deg);
-  }
-}
-
-@keyframes cup-fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes cup-reveal {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cup-build__cup,
-  .cup-build__stream,
-  .cup-build__serve,
-  .cup-build__toppings,
-  .cup-build__glow,
-  .cup-build__shadow,
-  .cup-build__reveal,
-  .cup-build__bit,
-  .cup-build__yogurt-peak {
-    animation: none !important;
-  }
-
-  .cup-build__cup,
-  .cup-build__stream,
-  .cup-build__serve,
-  .cup-build__toppings,
-  .cup-build__glow {
-    display: none !important;
-  }
-
-  .cup-build__shadow {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-
-  .cup-build__reveal {
-    opacity: 1 !important;
-    transform: scale(1) !important;
-    -webkit-mask-image: none !important;
-    mask-image: none !important;
-  }
-
-  .cup-build__stage {
-    transform: none !important;
+  .cup-build:not(.cup-build--force) .cup-build__cup,
+  .cup-build:not(.cup-build--force) .cup-build__stream,
+  .cup-build:not(.cup-build--force) .cup-build__serve,
+  .cup-build:not(.cup-build--force) .cup-build__toppings,
+  .cup-build:not(.cup-build--force) .cup-build__glow,
+  .cup-build:not(.cup-build--force) .cup-build__bit,
+  .cup-build:not(.cup-build--force) .cup-build__yogurt-peak,
+  .cup-build:not(.cup-build--force) .cup-build__reveal,
+  .cup-build:not(.cup-build--force) .cup-build__shadow,
+  .cup-build:not(.cup-build--force) .cup-build__stage {
+    transition: none !important;
   }
 }
 

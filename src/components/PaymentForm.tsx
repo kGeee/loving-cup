@@ -41,7 +41,9 @@ export function PaymentForm({
   const [message, setMessage] = useState<string | null>(null);
   const [paidOrder, setPaidOrder] = useState<AppOrder | null>(null);
   const [showPaidLabel, setShowPaidLabel] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  /** null until matchMedia resolves — avoids play→reduced abort race. */
+  const [reducedMotion, setReducedMotion] = useState<boolean | null>(null);
+  const [forceMotion, setForceMotion] = useState(false);
   const cardRef = useRef<{
     tokenize: () => Promise<{ status: string; token?: string }>;
   } | null>(null);
@@ -49,6 +51,8 @@ export function PaymentForm({
   onPaidRef.current = onPaid;
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setForceMotion(params.get("motion") === "1");
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReducedMotion(mq.matches);
     const onChange = () => setReducedMotion(mq.matches);
@@ -125,7 +129,7 @@ export function PaymentForm({
       if (!res.ok) throw new Error(data.error || "Payment failed");
       const paid = data.order as AppOrder;
       setPaidOrder(paid);
-      if (reducedMotion) setShowPaidLabel(true);
+      if (reducedMotion && !forceMotion) setShowPaidLabel(true);
       setStatus("swirling");
       onPaidRef.current(paid);
     } catch (e) {
@@ -157,7 +161,9 @@ export function PaymentForm({
   }
 
   const showOverlay =
-    (status === "swirling" || status === "done") && paidOrder;
+    (status === "swirling" || status === "done") &&
+    paidOrder &&
+    reducedMotion !== null;
 
   return (
     <div className="pay-form-wrap">
@@ -166,6 +172,7 @@ export function PaymentForm({
           <CupBuildAnimation
             order={paidOrder}
             reducedMotion={reducedMotion}
+            forceMotion={forceMotion}
             onFinished={onBuildFinished}
           />
           {showPaidLabel ? (
