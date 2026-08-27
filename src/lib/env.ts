@@ -1,7 +1,7 @@
 /**
  * Environment + mode detection.
  * When SQUARE_* secrets are present → live Square.
- * Otherwise → labeled demo/POC mode (no invented secrets).
+ * Otherwise → shop-true demo mode (no invented secrets).
  */
 
 export type AppMode = "square" | "demo";

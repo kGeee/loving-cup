@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { MenuItem } from "@/types/menu";
 import { formatUsd } from "@/lib/pricing";
 
-/** Menu row “from” = lowest catalog variation base (e.g. $4.99), not JPEG size totals. */
-function fromPriceCents(item: MenuItem): number {
+/** Menu row price = cup variation base ($4.99). Sold-out printed rows show no price. */
+function basePriceCents(item: MenuItem): number {
   return Math.min(...item.variations.map((v) => v.price.amount));
 }
 
@@ -12,7 +12,7 @@ export function MenuGrid({ items }: { items: MenuItem[] }) {
     return (
       <p className="empty-state">
         No froyo items available. When Square secrets are set, the live catalog
-        loads here (fail-closed — no fake prices in live mode).
+        loads here.
       </p>
     );
   }
@@ -20,13 +20,15 @@ export function MenuGrid({ items }: { items: MenuItem[] }) {
   return (
     <ul className="menu-grid">
       {items.map((item, i) => {
-        const from = fromPriceCents(item);
-        return (
-          <li
-            key={item.id}
-            className="menu-row"
-            style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
-          >
+        const price = basePriceCents(item);
+        const row = (
+          <>
+            <div className="menu-row__photo" aria-hidden={!item.imageUrl}>
+              {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.imageUrl} alt="" width={72} height={72} />
+              ) : null}
+            </div>
             <div className="menu-row__text">
               <h3 className="menu-row__name">
                 {item.name}
@@ -37,17 +39,26 @@ export function MenuGrid({ items }: { items: MenuItem[] }) {
               {item.description ? (
                 <p className="menu-row__desc">{item.description}</p>
               ) : null}
-              <p className="menu-row__price">
-                {item.soldOut ? "—" : `from ${formatUsd(from)}`}
-              </p>
+              {!item.soldOut ? (
+                <p className="menu-row__price">{formatUsd(price)}</p>
+              ) : null}
             </div>
+          </>
+        );
+
+        return (
+          <li
+            key={item.id}
+            className={`menu-row ${item.soldOut ? "menu-row--soldout" : ""}`}
+            style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
+          >
             {item.soldOut ? (
-              <span className="btn btn--ghost" aria-disabled>
-                Unavailable
-              </span>
+              <div className="menu-row__body" aria-disabled>
+                {row}
+              </div>
             ) : (
-              <Link className="btn btn--primary" href={`/menu/${item.id}`}>
-                Customize
+              <Link className="menu-row__body" href={`/menu/${item.id}`}>
+                {row}
               </Link>
             )}
           </li>

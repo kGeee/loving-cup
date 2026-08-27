@@ -1,15 +1,9 @@
 /**
- * Demo/POC catalog — labeled sample data, gated off the live Square path.
+ * Shop-true demo catalog — mirrors live Square alovingcup NOPA menu.
  *
- * Mirrors live Square Make Your Own (item=232) pricing — NOT the /menu JPEG totals:
- *   Cup base $4.99 + size modifiers (Required, select one):
- *     akid size (Sold out) · Small +$1.01 · Medium +$2.01 · Large +$3.01 · Pint +$7.01
- *   Mix-ins: ONE chip list (design lock; Square Online has two ~30 grids — we don't clone that)
- *   Extra mix-in +$0.75 · Cone +$1.25 · toasted coconut once
- *
- * `akid` is a sold-out SIZE MODIFIER, not a standalone menu item.
- * Out of this pass: rice pudding + 7 printed-only flavors (monster cookie, butterfinger,
- * mocha chip, peanut butter cup, power cup, brownie obsessed, matcha).
+ * Orderable named cups (9) + Make Your Own; 7 printed flavors sold-out (visible, no price).
+ * Pricing: Cup base $4.99 + size mods (akid not a row) · MYO bases · mix-ins 2 included / extras +$0.75 · cone +$1.25
+ * Never JPEG $6/$7/$8/$12 variation hardcodes.
  */
 
 import { normalizeMenuItem } from "@/lib/normalize-modifiers";
@@ -30,23 +24,27 @@ const CUP_VARIATION: MenuVariation = {
   ordinal: 0,
 };
 
-/** Live Square size sheet on Make Your Own — akid sold out. */
+/**
+ * Size sheet — akid is sold out and is NOT a selectable row.
+ * Small +$1.01 · Medium +$2.01 · Large +$3.01 · Pint +$7.01
+ */
 const SIZE_MODIFIERS = [
-  { key: "akid", name: "akid", cents: 0, soldOut: true },
-  { key: "small", name: "Small", cents: 101, soldOut: false },
-  { key: "medium", name: "Medium", cents: 201, soldOut: false },
-  { key: "large", name: "Large", cents: 301, soldOut: false },
-  { key: "pint", name: "Pint", cents: 701, soldOut: false },
+  { key: "small", name: "Small", cents: 101 },
+  { key: "medium", name: "Medium", cents: 201 },
+  { key: "large", name: "Large", cents: 301 },
+  { key: "pint", name: "Pint", cents: 701 },
 ] as const;
 
+/** MYO bases: nonfat vanilla / chocolate / half included; non-dairy and banana +$0.50 */
 const BASES = [
-  "Nonfat Tart",
-  "Nonfat Vanilla",
-  "Nonfat Chocolate",
-  "Dairy-Free Coconut",
-];
+  { name: "Nonfat Vanilla", cents: 0 },
+  { name: "Nonfat Chocolate", cents: 0 },
+  { name: "Half", cents: 0 },
+  { name: "Non-dairy", cents: 50 },
+  { name: "Banana", cents: 50 },
+] as const;
 
-/** One mix-in sheet — toasted coconut once (not Square's duplicated free-list entry). */
+/** One mix-in chip list — toasted coconut once. First 2 included; extras +$0.75. */
 const MIX_INS = [
   "Fresh Strawberries",
   "Blueberries",
@@ -60,7 +58,12 @@ const MIX_INS = [
   "Almonds",
   "Toasted Coconut",
   "Gummy Bears",
-];
+  "Nutella",
+  "Peanut Butter",
+  "Animal Crackers",
+  "Pretzels",
+  "Jr Mints",
+] as const;
 
 function sizeList(itemKey: string): MenuModifierList {
   return {
@@ -75,7 +78,6 @@ function sizeList(itemKey: string): MenuModifierList {
       name: s.name,
       price: USD(s.cents),
       ordinal: i,
-      soldOut: s.soldOut,
     })),
   };
 }
@@ -88,10 +90,10 @@ function baseList(itemKey: string): MenuModifierList {
     selectionType: "SINGLE",
     minSelected: 1,
     maxSelected: 1,
-    modifiers: BASES.map((name, i) => ({
+    modifiers: BASES.map((b, i) => ({
       id: `mod_${itemKey}_base_${i}`,
-      name,
-      price: USD(0),
+      name: b.name,
+      price: USD(b.cents),
       ordinal: i,
     })),
   };
@@ -105,11 +107,11 @@ function mixinList(itemKey: string): MenuModifierList {
     selectionType: "MULTIPLE",
     minSelected: 0,
     maxSelected: 10,
-    // Design-lock CYOB: 2 included; extras beyond that use catalog +$0.75.
     includedCount: 2,
     modifiers: MIX_INS.map((name, i) => ({
       id: `mod_${itemKey}_mixin_${i}`,
       name,
+      // Catalog price for extras beyond includedCount; UI does not label the 2 included.
       price: USD(75),
       ordinal: i,
     })),
@@ -135,7 +137,13 @@ function coneList(itemKey: string): MenuModifierList {
   };
 }
 
-function cupSheets(itemKey: string): MenuModifierList[] {
+/** Named cups: size sheet only (no mix-in / base / cone sheet). */
+function namedCupSheets(itemKey: string): MenuModifierList[] {
+  return [sizeList(itemKey)];
+}
+
+/** Make Your Own: size, base, 2 included mix-ins then extra +$0.75, cone +$1.25. */
+function myoSheets(itemKey: string): MenuModifierList[] {
   return [
     sizeList(itemKey),
     baseList(itemKey),
@@ -144,53 +152,152 @@ function cupSheets(itemKey: string): MenuModifierList[] {
   ];
 }
 
-/**
- * Sample signature names for demo only.
- * Deliberately excludes the 7 printed-only flavors not on the online catalog.
- */
-const SIGNATURE_NAMES = [
-  "Berry Bliss",
-  "Cookies & Cream Dream",
-  "Chocolate Avalanche",
-  "Strawberry Fields",
-  "Banana Split Cup",
-  "Caramel Crunch",
-  "Mint Chip Moment",
-  "Tropical Twirl",
-  "S'mores Scoop",
-  "Lemon Berry Bright",
-  "Coffee Toffee",
-  "Rainbow Sprinkle",
-  "Dark Cocoa Crush",
+type NamedCup = {
+  key: string;
+  name: string;
+  /** Ingredients from Square / shop; blank rather than invent. */
+  ingredients: string;
+  imageUrl?: string;
+};
+
+/** Live Square alovingcup orderable named cups (these nine only, plus MYO). */
+const ORDERABLE_CUPS: NamedCup[] = [
+  {
+    key: "mango_dream",
+    name: "Mango Dream",
+    ingredients: "Vanilla + Mango",
+  },
+  {
+    key: "lone_wolf",
+    name: "Lone Wolf",
+    ingredients: "Chocolate + Almond Butter + Heath Bar",
+  },
+  {
+    key: "salty_dog",
+    name: "Salty Dog",
+    ingredients: "Vanilla + Salted Caramel + Pretzels",
+    imageUrl: "/cup-salty-dog.webp",
+  },
+  {
+    key: "blueberry_dream",
+    name: "Blueberry Dream",
+    ingredients: "Vanilla + Blueberries + Toasted Coconut",
+  },
+  {
+    key: "dirty_hipster",
+    name: "Dirty Hipster",
+    ingredients: "Vanilla + Nutella + Oreos",
+  },
+  {
+    key: "strawberry_shortcake",
+    name: "Strawberry Shortcake",
+    ingredients: "Vanilla + Strawberries + Animal Crackers",
+    imageUrl: "/cup-strawberry-shortcake.webp",
+  },
+  {
+    key: "thinner_mint",
+    name: "Thinner Mint",
+    ingredients: "Vanilla + Oreos + Junior Mints",
+    imageUrl: "/cup-thinner-mint.webp",
+  },
+  {
+    key: "crunchy_cereal",
+    name: "Crunchy Cereal",
+    ingredients: "Vanilla + House Made Crunchy Cereals + Salted Caramel Sauce",
+  },
 ];
 
-function signatureItem(name: string, index: number): MenuItem {
-  const key = `sig_${index}`;
+/**
+ * 7 printed flavors not in Square — sold out, no prices, cannot add to cart.
+ * Kept visible on the menu; never hidden by catalog-filter.
+ */
+const PRINTED_SOLD_OUT: NamedCup[] = [
+  {
+    key: "monster_cookie",
+    name: "Monster Cookie",
+    ingredients: "Vanilla + Cookie Dough + Oreos",
+  },
+  {
+    key: "butterfinger",
+    name: "Butterfinger",
+    ingredients: "Vanilla + Peanut Butter + Heath Bar",
+  },
+  {
+    key: "matcha",
+    name: "Matcha",
+    ingredients: "Vanilla + Organic Matcha",
+  },
+  {
+    key: "mocha_chip",
+    name: "Mocha Chip",
+    ingredients: "Chocolate + Espresso + Chocolate Chips",
+  },
+  {
+    key: "peanut_butter_cup",
+    name: "Peanut Butter Cup",
+    ingredients: "Vanilla + Peanut Butter + Chocolate Chips",
+    imageUrl: "/cup-peanut-butter-cup.webp",
+  },
+  {
+    key: "power_cup",
+    name: "Power Cup",
+    ingredients: "Chocolate + Almond Butter + Bananas",
+  },
+  {
+    key: "brownie_obsessed",
+    name: "Brownie Obsessed",
+    ingredients: "Chocolate + Brownies",
+  },
+];
+
+function orderableNamedCup(cup: NamedCup): MenuItem {
   return normalizeMenuItem({
-    id: `item_${key}`,
-    name,
-    description:
-      "Signature cup (demo). Base $4.99 + size modifiers from the Square model.",
-    categoryIds: ["cat_signature"],
-    categoryNames: ["Signature Cups"],
+    id: `item_${cup.key}`,
+    name: cup.name,
+    description: cup.ingredients || undefined,
+    categoryIds: ["cat_alovingcup"],
+    categoryNames: ["alovingcup"],
     variations: [
       {
         ...CUP_VARIATION,
-        id: `var_cup_${key}`,
-        sku: `cup-${key}`,
+        id: `var_cup_${cup.key}`,
+        sku: `cup-${cup.key}`,
       },
     ],
-    modifierLists: cupSheets(key),
+    modifierLists: namedCupSheets(cup.key),
     soldOut: false,
+    imageUrl: cup.imageUrl,
   });
 }
 
-/** Mirrors Square Make Your Own (item=232) — not a delivery-walled /s/order clone. */
+function printedSoldOutCup(cup: NamedCup): MenuItem {
+  // Sold-out printed rows: no orderable variation price for the menu UI.
+  return normalizeMenuItem({
+    id: `item_${cup.key}`,
+    name: cup.name,
+    description: cup.ingredients || undefined,
+    categoryIds: ["cat_alovingcup"],
+    categoryNames: ["alovingcup"],
+    variations: [
+      {
+        id: `var_cup_${cup.key}`,
+        name: "Cup",
+        sku: `cup-${cup.key}`,
+        // Price present for type shape only; MenuGrid omits price when soldOut.
+        price: USD(499),
+        ordinal: 0,
+      },
+    ],
+    modifierLists: [],
+    soldOut: true,
+    imageUrl: cup.imageUrl,
+  });
+}
+
 const MAKE_YOUR_OWN: MenuItem = normalizeMenuItem({
   id: "item_make_your_own",
   name: "Make Your Own",
-  description:
-    "Demo Make Your Own. Base $4.99 + size mods (akid sold out). One mix-in chip list; 2 included; cone +$1.25.",
+  description: undefined,
   categoryIds: ["cat_cyob"],
   categoryNames: ["Make Your Own"],
   variations: [
@@ -200,7 +307,7 @@ const MAKE_YOUR_OWN: MenuItem = normalizeMenuItem({
       sku: "cup-myo",
     },
   ],
-  modifierLists: cupSheets("myo"),
+  modifierLists: myoSheets("myo"),
   soldOut: false,
 });
 
@@ -211,18 +318,18 @@ export const DEMO_CATALOG_DISCOUNT = {
 };
 
 export function getDemoCatalog(): CatalogPayload {
-  // No standalone `akid` menu row — akid lives only as a sold-out size modifier.
   const items: MenuItem[] = [
+    ...ORDERABLE_CUPS.map(orderableNamedCup),
     MAKE_YOUR_OWN,
-    ...SIGNATURE_NAMES.map((n, i) => signatureItem(n, i)),
+    ...PRINTED_SOLD_OUT.map(printedSoldOutCup),
   ];
 
   return {
     mode: "demo",
     locationId: "DEMO_NOPA",
     categories: [
-      { id: "cat_cyob", name: "Make Your Own", ordinal: 0 },
-      { id: "cat_signature", name: "Signature Cups", ordinal: 1 },
+      { id: "cat_alovingcup", name: "alovingcup", ordinal: 0 },
+      { id: "cat_cyob", name: "Make Your Own", ordinal: 1 },
     ],
     items,
     fetchedAt: new Date().toISOString(),

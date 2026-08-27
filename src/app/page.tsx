@@ -2,7 +2,6 @@ import { DemoBanner } from "@/components/DemoBanner";
 import { MenuGrid } from "@/components/MenuGrid";
 import { fetchCatalog } from "@/lib/catalog";
 import { getAppMode, NOPA } from "@/lib/env";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -19,39 +18,41 @@ export default async function HomePage() {
 
   return (
     <main>
-      <div className="section" style={{ paddingBottom: 0, paddingTop: "0.5rem" }}>
-        <DemoBanner mode={mode} />
-      </div>
+      <DemoBanner mode={mode} />
 
       <section className="hero" aria-label="Loving Cup">
-        <div className="hero__plane" aria-hidden />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="hero__plane"
+          src="/hero-cones.webp"
+          alt=""
+          width={2500}
+          height={1667}
+        />
         <div className="hero__content">
-          <h1 className="hero__brand">Loving Cup</h1>
-          <p className="hero__headline">
-            Soft-serve ahead for NOPA pickup.
-          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="hero__logo"
+            src="/logo.webp"
+            alt="Loving Cup"
+            width={320}
+            height={133}
+          />
+          <h1 className="hero__headline">Frozen Yogurt Made Right™</h1>
           <p className="hero__sub">
-            Pickup only — browse the menu with no delivery wall. Customize size,
-            base, mix-ins, cone. Kitchen: {NOPA.name} only.
+            {NOPA.name} · {NOPA.address} · {NOPA.hours}
           </p>
           <div className="hero__cta">
-            <a className="btn btn--on-dark" href="#menu">
-              Order ahead
+            <a className="btn btn--primary" href="#menu">
+              Order
             </a>
-            <Link className="btn btn--outline-light" href="/cart">
-              Cart
-            </Link>
           </div>
         </div>
       </section>
 
       <section className="section" id="menu">
         <h2>Menu</h2>
-        <p className="lede">
-          {mode === "demo"
-            ? "Sample demo catalog — $4.99 base + size modifiers (Square model). Not live Square data."
-            : "Live from Square Catalog (froyo only; shared-catalog pizza SKUs filtered out)."}
-        </p>
+        <p className="lede">Pickup only at NOPA — no delivery wall.</p>
         {loadError ? <p className="form-error">{loadError}</p> : null}
         <MenuGrid items={items} />
 

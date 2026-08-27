@@ -9,9 +9,7 @@ export default function CartPage() {
   const mode = getAppMode();
   return (
     <main>
-      <div className="section" style={{ paddingBottom: 0, paddingTop: "0.5rem" }}>
-        <DemoBanner mode={mode} />
-      </div>
+      <DemoBanner mode={mode} />
       <div className="page-head">
         <p className="fine-print">
           <Link href="/#menu">← Keep shopping</Link>

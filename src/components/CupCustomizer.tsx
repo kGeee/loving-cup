@@ -12,9 +12,8 @@ function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[
     if (list.role === "size") {
       const firstOrderable =
         list.modifiers.find((m) => !m.soldOut) ?? list.modifiers[0];
-      init[list.id] = firstOrderable && !firstOrderable.soldOut
-        ? [firstOrderable.id]
-        : [];
+      init[list.id] =
+        firstOrderable && !firstOrderable.soldOut ? [firstOrderable.id] : [];
       continue;
     }
     if (list.selectionType === "SINGLE" && list.minSelected > 0) {
@@ -25,6 +24,18 @@ function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[
     }
   }
   return init;
+}
+
+function chipPriceLabel(
+  list: MenuModifierList,
+  amount: number,
+): string | null {
+  // Mix-ins: first 2 included — do not put +$0.75 on included chips.
+  if (list.role === "mixin" && (list.includedCount ?? 0) > 0) {
+    return null;
+  }
+  if (amount <= 0) return null;
+  return `+${formatUsd(amount)}`;
 }
 
 export function CupCustomizer({ item }: { item: MenuItem }) {
@@ -121,12 +132,17 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
   }
 
   const basePrice = item.variations[0]?.price.amount ?? 0;
+  const isMyo = /make\s*your\s*own/i.test(item.name);
 
   return (
     <div className="customizer">
       <p className="customizer__base">
         Cup base {formatUsd(basePrice)}
-        <span> · size &amp; mix-ins from catalog modifiers</span>
+        {isMyo ? (
+          <span> · size, base, mix-ins &amp; cone</span>
+        ) : (
+          <span> · choose a size</span>
+        )}
       </p>
 
       {item.modifierLists.map((list) => (
@@ -134,15 +150,17 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
           <legend>
             {list.name}
             {list.role === "size" ? " · required" : null}
-            {list.includedCount
-              ? ` · ${list.includedCount} included`
+            {list.role === "mixin" && list.includedCount
+              ? ` · ${list.includedCount} included, extras +$0.75`
               : null}
+            {list.role === "cone" ? " · +$1.25" : null}
           </legend>
           <div className="chip-row chip-row--wrap">
             {list.modifiers.map((m) => {
               const on = (selections[list.id] ?? []).includes(m.id);
-              const showPrice =
-                list.role === "size" ? !m.soldOut : m.price.amount > 0;
+              const priceLabel = m.soldOut
+                ? null
+                : chipPriceLabel(list, m.price.amount);
               return (
                 <button
                   key={m.id}
@@ -155,12 +173,8 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
                   {m.name}
                   {m.soldOut ? (
                     <span>Sold out</span>
-                  ) : showPrice ? (
-                    <span>
-                      {m.price.amount === 0
-                        ? formatUsd(0)
-                        : `+${formatUsd(m.price.amount)}`}
-                    </span>
+                  ) : priceLabel ? (
+                    <span>{priceLabel}</span>
                   ) : null}
                 </button>
               );
