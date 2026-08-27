@@ -14,6 +14,30 @@ export default async function AdminPage() {
   const configured = isAdminConfigured();
   const authed = configured ? await readAdminSessionFromCookies() : false;
   const mode = getAppMode();
+  const mode = getAppMode();
+
+  // Fail-closed board: no ADMIN_PASSWORD → no login form, no order APIs.
+  // Show a clear offline page instead of a cryptic Next.js 404.
+  if (!isAdminConfigured()) {
+    return (
+      <main>
+        <DemoBanner mode={mode} />
+        <div className="page-head">
+          <p className="fine-print">
+            <Link href="/">← Loving Cup</Link>
+          </p>
+          <h1>Kitchen board offline</h1>
+          <p className="lede">
+            Admin is fail-closed until <code>ADMIN_PASSWORD</code> is set in
+            the Vercel project env (Preview and Production), then redeploy. Do
+            not commit the password.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const authed = await readAdminSessionFromCookies();
 
   return (
     <main>
