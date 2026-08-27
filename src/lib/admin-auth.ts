@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 
 export const ADMIN_COOKIE = "lc_admin_session";
 
-/** Fail-closed: admin is off unless ADMIN_PASSWORD is set (value never invented here). */
+export const ADMIN_UNCONFIGURED_MESSAGE =
+  "Admin isn't configured on this deploy. Set `ADMIN_PASSWORD` on Vercel, then reload.";
+
+/** Admin is off unless ADMIN_PASSWORD is set (value never invented here). */
 export function getAdminPassword(): string | null {
   const pw = process.env.ADMIN_PASSWORD?.trim();
   return pw ? pw : null;
@@ -66,7 +69,10 @@ export async function readAdminSessionFromCookies(): Promise<boolean> {
 /** For Route Handlers — returns a NextResponse error or null if authorized. */
 export function requireAdminApi(req: Request): NextResponse | null {
   if (!isAdminConfigured()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: ADMIN_UNCONFIGURED_MESSAGE },
+      { status: 503 },
+    );
   }
   const cookieHeader = req.headers.get("cookie") ?? "";
   const match = cookieHeader

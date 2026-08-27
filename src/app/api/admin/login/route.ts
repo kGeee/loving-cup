@@ -1,4 +1,5 @@
 import {
+  ADMIN_UNCONFIGURED_MESSAGE,
   createAdminSessionToken,
   getAdminPassword,
   isAdminConfigured,
@@ -9,10 +10,13 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-/** Exchange ADMIN_PASSWORD for a signed httpOnly cookie. Fail-closed if unset. */
+/** Exchange ADMIN_PASSWORD for a signed httpOnly cookie. 503 if unset. */
 export async function POST(req: Request) {
   if (!isAdminConfigured()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: ADMIN_UNCONFIGURED_MESSAGE },
+      { status: 503 },
+    );
   }
 
   let body: { password?: string };
@@ -28,7 +32,10 @@ export async function POST(req: Request) {
 
   const token = createAdminSessionToken();
   if (!token || !getAdminPassword()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: ADMIN_UNCONFIGURED_MESSAGE },
+      { status: 503 },
+    );
   }
 
   const res = NextResponse.json({ ok: true });
