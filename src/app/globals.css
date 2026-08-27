@@ -719,6 +719,20 @@ button.menu-row__body--btn {
   font-size: var(--text-13);
 }
 
+/* Pay sheet: chocolate (#3c2f29 / --ink) error line — not berry. */
+.form-error--chocolate {
+  color: var(--ink);
+}
+
+.btn--pay {
+  height: 48px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 .fake-pay,
 .card-box {
   padding: 1rem;
@@ -754,136 +768,265 @@ button.menu-row__body--btn {
   font-size: var(--text-13);
 }
 
+/*
+ * Counter swirl — 240px · 1200ms wall-clock (delays must not stack past 1200ms).
+ * 0–180 cup settles · 180–700 mix-in drops (80ms stagger) · 700–1100 yogurt rotate · 1100–1200 finished.
+ */
 .pay-swirl {
   pointer-events: none;
-  width: 120px;
-  height: 120px;
+  width: 240px;
+  height: 240px;
   margin: 0.25rem auto 0.5rem;
+}
+
+.pay-swirl__counter {
+  width: 240px;
+  height: 240px;
+  /* Marble / subway under the cup — CSS only, no generated mesh. */
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      transparent 42%,
+      rgba(60, 47, 41, 0.04) 100%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgba(60, 47, 41, 0.055) 27px,
+      rgba(60, 47, 41, 0.055) 28px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 55px,
+      rgba(60, 47, 41, 0.045) 55px,
+      rgba(60, 47, 41, 0.045) 56px
+    ),
+    #f0e8de;
+  display: grid;
+  place-items: center;
+}
+
+.pay-swirl__perspective {
+  width: 200px;
+  height: 200px;
+  perspective: 600px;
 }
 
 .pay-swirl__stage {
   position: relative;
-  width: 120px;
-  height: 120px;
-  overflow: hidden;
-  border-radius: 0;
+  width: 200px;
+  height: 200px;
+  transform: rotateX(8deg);
+  transform-style: preserve-3d;
 }
 
-.pay-swirl__cup {
+.pay-swirl__shadow {
   position: absolute;
-  inset: 0;
-  width: 120px;
-  height: 120px;
-  border-radius: 0;
-  background-size: cover;
-  background-position: center;
+  left: 50%;
+  bottom: 18px;
+  width: 118px;
+  height: 28px;
+  margin-left: -59px;
+  border-radius: 50%;
+  background: rgba(60, 47, 41, 0.28);
+  box-shadow: 0 18px 28px rgba(60, 47, 41, 0.28);
+  opacity: 0;
+  transform: scaleX(0.7);
+  filter: blur(2px);
+}
+
+.pay-swirl__cup-wall {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  width: 112px;
+  height: 128px;
+  margin-left: -56px;
+  background-size: 220%;
   background-repeat: no-repeat;
   opacity: 0;
-  transform: scale(0.92);
+  transform: translateY(14px) scale(0.94);
+  clip-path: polygon(8% 12%, 92% 12%, 96% 100%, 4% 100%);
+}
+
+.pay-swirl__yogurt {
+  position: absolute;
+  left: 50%;
+  top: 28px;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  border-radius: 50%;
+  background-size: 180%;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: rotate(0deg) scale(0.92);
+  box-shadow: inset 0 0 0 1px rgba(60, 47, 41, 0.06);
 }
 
 .pay-swirl__mixins {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-}
-
-.pay-swirl__sprite,
-.pay-swirl__dot {
-  position: absolute;
-  width: 36px;
-  height: 36px;
-  border-radius: 0;
-  opacity: 0;
-  transform: translateY(-20px) scale(1);
-  left: calc(42px + (var(--i, 0) - 2.5) * 10px);
-  top: 28px;
+  pointer-events: none;
 }
 
 .pay-swirl__sprite {
-  background-size: 220%;
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  background-size: 280%;
   background-repeat: no-repeat;
+  opacity: 0;
+  left: calc(80px + (var(--i, 0) - 2.5) * 18px);
+  top: 36px;
+  transform: translateY(-40px) scale(1.6);
+  box-shadow: 0 2px 6px rgba(60, 47, 41, 0.18);
 }
 
-.pay-swirl__dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--ink);
+.pay-swirl__finished {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140px;
+  height: 140px;
+  margin: -70px 0 0 -70px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0;
+  box-shadow: 0 18px 28px rgba(60, 47, 41, 0.28);
 }
 
-/*
- * Single 800ms wall-clock timeline — delays/durations do NOT stack past 800ms.
- * 0–100 cup in · 100–500 drops (60ms stagger, short duration) · 500–720 swirl · 720–800 hold
- */
-.pay-swirl--play .pay-swirl__cup {
-  animation: pay-cup-in 100ms ease-out forwards;
+.pay-swirl--play .pay-swirl__shadow {
+  animation: pay-shadow-in 180ms ease-out forwards;
 }
 
-.pay-swirl--play .pay-swirl__sprite,
-.pay-swirl--play .pay-swirl__dot {
-  /* delay 100 + i*60; duration 100 → last (i=5) ends at 500ms */
-  animation: pay-mixin-drop 100ms ease-out calc(100ms + (var(--i, 0) * 60ms))
-    forwards;
+.pay-swirl--play .pay-swirl__cup-wall {
+  animation: pay-cup-settle 180ms ease-out forwards;
 }
 
-.pay-swirl--play .pay-swirl__stage {
-  animation: pay-swirl-spin 220ms ease-in-out 500ms forwards;
+.pay-swirl--play .pay-swirl__sprite {
+  /* delay 180 + i*80; duration 120 → last (i=5) ends at 700ms */
+  animation:
+    pay-mixin-drop 120ms ease-out calc(180ms + (var(--i, 0) * 80ms)) forwards,
+    pay-mixin-mask 400ms ease-in-out 700ms forwards;
 }
 
-.pay-swirl--reduced .pay-swirl__cup {
-  animation: none;
+.pay-swirl--play .pay-swirl__yogurt {
+  animation: pay-yogurt-spin 400ms ease-in-out 700ms forwards;
+}
+
+.pay-swirl--play .pay-swirl__finished {
+  animation: pay-finished-in 100ms ease-out 1100ms forwards;
+}
+
+.pay-swirl--reduced .pay-swirl__shadow {
   opacity: 1;
-  transform: none;
+  transform: scaleX(1);
 }
 
-.pay-swirl--reduced .pay-swirl__sprite,
-.pay-swirl--reduced .pay-swirl__dot {
+.pay-swirl--reduced .pay-swirl__cup-wall,
+.pay-swirl--reduced .pay-swirl__yogurt {
   display: none;
 }
 
-@keyframes pay-cup-in {
+.pay-swirl--reduced .pay-swirl__sprite {
+  display: none;
+}
+
+.pay-swirl--reduced .pay-swirl__finished {
+  opacity: 1;
+}
+
+@keyframes pay-shadow-in {
   from {
     opacity: 0;
-    transform: scale(0.86);
+    transform: scaleX(0.7);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scaleX(1);
+  }
+}
+
+@keyframes pay-cup-settle {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes pay-mixin-drop {
   from {
     opacity: 0;
-    transform: translateY(-20px) scale(1);
+    transform: translateY(-40px) scale(1.6);
   }
   to {
     opacity: 1;
-    transform: translateY(12px) scale(0.4);
+    transform: translateY(0) scale(0.45);
   }
 }
 
-@keyframes pay-swirl-spin {
+@keyframes pay-mixin-mask {
   from {
-    transform: rotate(0deg);
+    opacity: 1;
+    transform: translateY(0) scale(0.45);
   }
   to {
-    transform: rotate(120deg);
+    opacity: 0.55;
+    transform: translateY(28px) scale(0.22);
+  }
+}
+
+@keyframes pay-yogurt-spin {
+  from {
+    opacity: 0.65;
+    transform: rotate(0deg) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(180deg) scale(1);
+  }
+}
+
+@keyframes pay-finished-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pay-swirl__cup {
+  .pay-swirl__cup-wall,
+  .pay-swirl__yogurt,
+  .pay-swirl__sprite,
+  .pay-swirl__shadow {
     animation: none !important;
-    opacity: 1;
-    transform: none;
   }
 
-  .pay-swirl__sprite,
-  .pay-swirl__dot {
-    display: none;
+  .pay-swirl__cup-wall,
+  .pay-swirl__yogurt,
+  .pay-swirl__sprite {
+    display: none !important;
+  }
+
+  .pay-swirl__shadow {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  .pay-swirl__finished {
+    animation: none !important;
+    opacity: 1 !important;
   }
 
   .pay-swirl__stage {

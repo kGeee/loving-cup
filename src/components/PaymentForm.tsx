@@ -25,43 +25,65 @@ declare global {
   }
 }
 
-/** Crops from existing board stills — never generate froyo images. */
-const BOARD_STILLS = [
-  "/cup-salty-dog.webp",
-  "/cup-strawberry-shortcake.webp",
-  "/cup-thinner-mint.webp",
-  "/cup-peanut-butter-cup.webp",
-] as const;
-
-/** Preferred still crop per topping — each board still used at most once per swirl. */
-const MIXIN_STILL_PREF: Record<string, { src: (typeof BOARD_STILLS)[number]; pos: string }> = {
-  pretzels: { src: "/cup-salty-dog.webp", pos: "70% 55%" },
-  "fresh strawberries": {
-    src: "/cup-strawberry-shortcake.webp",
-    pos: "45% 35%",
-  },
-  strawberries: { src: "/cup-strawberry-shortcake.webp", pos: "45% 35%" },
-  "animal crackers": {
-    src: "/cup-strawberry-shortcake.webp",
-    pos: "62% 68%",
-  },
-  "oreo cookie": { src: "/cup-thinner-mint.webp", pos: "40% 50%" },
-  oreos: { src: "/cup-thinner-mint.webp", pos: "40% 50%" },
-  "jr mints": { src: "/cup-thinner-mint.webp", pos: "70% 38%" },
-  "peanut butter": { src: "/cup-peanut-butter-cup.webp", pos: "50% 45%" },
-  "chocolate chips": { src: "/cup-peanut-butter-cup.webp", pos: "35% 65%" },
-  nutella: { src: "/cup-thinner-mint.webp", pos: "55% 60%" },
-  "salted caramel": { src: "/cup-salty-dog.webp", pos: "35% 40%" },
-};
+/** Existing set stills only — never generate froyo images. */
+const MYO_STILL = "/cup-strawberry-shortcake.webp";
 
 const NAMED_STILL: Record<string, string> = {
   salty_dog: "/cup-salty-dog.webp",
   strawberry_shortcake: "/cup-strawberry-shortcake.webp",
   thinner_mint: "/cup-thinner-mint.webp",
   peanut_butter_cup: "/cup-peanut-butter-cup.webp",
+  blueberry_dream: "/cup-blueberry-dream.webp",
+  lone_wolf: "/cup-lone-wolf.webp",
 };
 
-type Sprite = { key: string; src?: string; pos?: string };
+/** Per-still crop anchors: cup wall (logo), yogurt mass, around-cup shards. */
+type StillCrops = {
+  wall: string;
+  yogurt: string;
+  shards: string[];
+};
+
+const STILL_CROPS: Record<string, StillCrops> = {
+  "/cup-salty-dog.webp": {
+    wall: "50% 70%",
+    yogurt: "50% 28%",
+    shards: ["14% 52%", "78% 58%", "18% 68%", "82% 42%", "10% 40%", "88% 65%"],
+  },
+  "/cup-strawberry-shortcake.webp": {
+    wall: "46% 72%",
+    yogurt: "46% 26%",
+    shards: ["12% 42%", "82% 52%", "16% 65%", "78% 36%", "8% 55%", "90% 60%"],
+  },
+  "/cup-thinner-mint.webp": {
+    wall: "50% 58%",
+    yogurt: "50% 48%",
+    shards: ["72% 22%", "78% 38%", "18% 42%", "22% 68%", "68% 72%", "12% 28%"],
+  },
+  "/cup-peanut-butter-cup.webp": {
+    wall: "50% 68%",
+    yogurt: "50% 30%",
+    shards: ["16% 48%", "80% 55%", "20% 70%", "84% 40%", "10% 38%", "88% 68%"],
+  },
+  "/cup-blueberry-dream.webp": {
+    wall: "50% 48%",
+    yogurt: "48% 42%",
+    shards: ["22% 28%", "78% 32%", "18% 72%", "82% 68%", "12% 48%", "88% 52%"],
+  },
+  "/cup-lone-wolf.webp": {
+    wall: "42% 48%",
+    yogurt: "40% 42%",
+    shards: ["72% 38%", "78% 58%", "18% 55%", "22% 30%", "68% 72%", "12% 70%"],
+  },
+};
+
+/** Oreos → Boitano shard crop on thinner-mint (top-right Oreo pieces). */
+const OREOS_BOITANO = {
+  src: "/cup-thinner-mint.webp",
+  pos: "74% 24%",
+} as const;
+
+type Sprite = { key: string; src: string; pos: string };
 
 function isConeMod(m: CartModifierSelection): boolean {
   return /\bcone\b/i.test(m.name);
@@ -88,37 +110,7 @@ function mixinKey(name: string): string {
     .trim();
 }
 
-/**
- * Ordered mix-in crops. Cap 6. Each board still file at most once
- * (never cup-salty-dog twice). No still left → 16px --ink dots. Cone excluded.
- */
-function spritesForOrder(order: AppOrder): Sprite[] {
-  const line: CartLine | undefined = order.lineItems[0];
-  if (!line) return [];
-
-  const mixins = line.modifiers.filter(
-    (m) => !isConeMod(m) && !isSizeMod(m) && !isBaseMod(m),
-  );
-
-  const usedStills = new Set<string>();
-
-  return mixins.slice(0, 6).map((m) => {
-    const pref = MIXIN_STILL_PREF[mixinKey(m.name)];
-    if (pref && !usedStills.has(pref.src)) {
-      usedStills.add(pref.src);
-      return { key: m.modifierId, src: pref.src, pos: pref.pos };
-    }
-    const next = BOARD_STILLS.find((s) => !usedStills.has(s));
-    if (next) {
-      usedStills.add(next);
-      return { key: m.modifierId, src: next, pos: "48% 42%" };
-    }
-    // Missing still → ink dot
-    return { key: m.modifierId };
-  });
-}
-
-/** Vessel = set still of branded cup. NEVER /logo.webp. */
+/** Named flavor still; MYO / missing → pale Strawberry Shortcake cup. No invented stills. */
 function cupStillForOrder(order: AppOrder): string {
   const line = order.lineItems[0];
   if (line) {
@@ -127,7 +119,37 @@ function cupStillForOrder(order: AppOrder): string {
     );
     if (hit) return hit[1];
   }
-  return "/hero-cones.webp";
+  return MYO_STILL;
+}
+
+function cropsFor(still: string): StillCrops {
+  return STILL_CROPS[still] ?? STILL_CROPS[MYO_STILL];
+}
+
+/**
+ * Mix-in shards from the same set still (around-cup). Cap 6.
+ * Oreos always uses the Boitano thinner-mint shard. Cone excluded.
+ */
+function spritesForOrder(order: AppOrder, still: string): Sprite[] {
+  const line: CartLine | undefined = order.lineItems[0];
+  if (!line) return [];
+
+  const mixins = line.modifiers.filter(
+    (m) => !isConeMod(m) && !isSizeMod(m) && !isBaseMod(m),
+  );
+  const crops = cropsFor(still);
+
+  return mixins.slice(0, 6).map((m, i) => {
+    const key = mixinKey(m.name);
+    if (key === "oreos" || key === "oreo cookie") {
+      return { key: m.modifierId, src: OREOS_BOITANO.src, pos: OREOS_BOITANO.pos };
+    }
+    return {
+      key: m.modifierId,
+      src: still,
+      pos: crops.shards[i % crops.shards.length],
+    };
+  });
 }
 
 function PaySwirl({
@@ -139,8 +161,9 @@ function PaySwirl({
   reducedMotion: boolean;
   onFinished: () => void;
 }) {
-  const sprites = useMemo(() => spritesForOrder(order), [order]);
-  const cupSrc = useMemo(() => cupStillForOrder(order), [order]);
+  const still = useMemo(() => cupStillForOrder(order), [order]);
+  const crops = useMemo(() => cropsFor(still), [still]);
+  const sprites = useMemo(() => spritesForOrder(order, still), [order, still]);
   const finishedRef = useRef(onFinished);
   finishedRef.current = onFinished;
 
@@ -149,8 +172,8 @@ function PaySwirl({
       finishedRef.current();
       return;
     }
-    // Hard wall-clock: 800ms then Paid. CSS delays must not stack past this.
-    const t = window.setTimeout(() => finishedRef.current(), 800);
+    // Hard wall-clock: 1200ms then Paid. CSS delays must not stack past this.
+    const t = window.setTimeout(() => finishedRef.current(), 1200);
     return () => window.clearTimeout(t);
   }, [reducedMotion]);
 
@@ -160,35 +183,45 @@ function PaySwirl({
       aria-hidden
       style={{ pointerEvents: "none" }}
     >
-      <div className="pay-swirl__stage">
-        <div
-          className="pay-swirl__cup"
-          style={{
-            backgroundImage: `url(${cupSrc})`,
-          }}
-        />
-        <div className="pay-swirl__mixins">
-          {sprites.map((s, i) =>
-            s.src ? (
-              <span
-                key={s.key}
-                className="pay-swirl__sprite"
-                style={{
-                  backgroundImage: `url(${s.src})`,
-                  backgroundPosition: s.pos,
-                  ["--i" as string]: String(i),
-                }}
-              />
-            ) : (
-              <span
-                key={s.key}
-                className="pay-swirl__dot"
-                style={{
-                  ["--i" as string]: String(i),
-                }}
-              />
-            ),
-          )}
+      <div className="pay-swirl__counter">
+        <div className="pay-swirl__perspective">
+          <div className="pay-swirl__stage">
+            <div className="pay-swirl__shadow" />
+            <div
+              className="pay-swirl__cup-wall"
+              style={{
+                backgroundImage: `url(${still})`,
+                backgroundPosition: crops.wall,
+              }}
+            />
+            <div
+              className="pay-swirl__yogurt"
+              style={{
+                backgroundImage: `url(${still})`,
+                backgroundPosition: crops.yogurt,
+              }}
+            />
+            <div className="pay-swirl__mixins">
+              {sprites.map((s, i) => (
+                <span
+                  key={s.key}
+                  className="pay-swirl__sprite"
+                  style={{
+                    backgroundImage: `url(${s.src})`,
+                    backgroundPosition: s.pos,
+                    ["--i" as string]: String(i),
+                  }}
+                />
+              ))}
+            </div>
+            <div
+              className="pay-swirl__finished"
+              style={{
+                backgroundImage: `url(${still})`,
+                backgroundPosition: crops.wall,
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -277,6 +310,7 @@ export function PaymentForm({
   }, [mode]);
 
   async function pay(sourceId: string) {
+    // Pay first — button reads Paying, no overlay until success.
     setStatus("paying");
     setMessage(null);
     try {
@@ -297,7 +331,7 @@ export function PaymentForm({
       setStatus("swirling");
       onPaidRef.current(paid);
     } catch (e) {
-      // Failure never plays the swirl; Try again stays on this sheet.
+      // Failure never plays the swirl; cart stays; Try again stays tappable.
       setMessage(e instanceof Error ? e.message : "Payment failed");
       setStatus("error");
     }
@@ -347,18 +381,12 @@ export function PaymentForm({
             </p>
           )}
           {status === "done" ? (
-            <p className="pay-success__meta">
-              {formatUsd(paidOrder.totalCents)} · order{" "}
-              <code>{paidOrder.id}</code>
-            </p>
-          ) : null}
-          {status === "done" ? (
             <Link
-              className="btn btn--primary"
-              href="/admin"
+              className="btn btn--primary btn--pay"
+              href="/#menu"
               style={{ pointerEvents: "auto" }}
             >
-              View in admin
+              See menu
             </Link>
           ) : null}
         </div>
@@ -376,16 +404,18 @@ export function PaymentForm({
           ) : (
             <div id="card-container" className="card-box" />
           )}
-          {message ? <p className="form-error">{message}</p> : null}
+          {message ? (
+            <p className="form-error form-error--chocolate">{message}</p>
+          ) : null}
           <button
             type="submit"
-            className="btn btn--primary"
+            className="btn btn--primary btn--pay"
             disabled={status === "paying" || status === "idle"}
           >
             {status === "paying"
-              ? "Charging…"
+              ? "Paying"
               : status === "error"
-                ? `Try again · ${formatUsd(order.totalCents)}`
+                ? "Try again"
                 : `Pay ${formatUsd(order.totalCents)}`}
           </button>
         </form>

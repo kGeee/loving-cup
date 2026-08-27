@@ -35,7 +35,8 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
         : 0;
   const due = Math.max(0, subtotalCents - rewardCents);
 
-  // Keep cart lines visible through pay — use order snapshot once created.
+  // Keep cart lines visible through pay + swirl — order snapshot once created.
+  // Not a modal: Esc is never trapped on this sheet.
   const displayLines: CartLine[] = order?.lineItems?.length
     ? order.lineItems
     : lines;
