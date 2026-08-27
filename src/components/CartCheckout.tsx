@@ -3,7 +3,7 @@
 import { useCart } from "@/components/CartProvider";
 import { PaymentForm } from "@/components/PaymentForm";
 import { cartLineTotal, formatUsd } from "@/lib/pricing";
-import type { AppOrder, LoyaltyPreview } from "@/types/menu";
+import type { AppOrder, CartLine, LoyaltyPreview } from "@/types/menu";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -15,6 +15,7 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
   const [applyRewards, setApplyRewards] = useState(false);
   const [loyalty, setLoyalty] = useState<LoyaltyPreview | null>(null);
   const [order, setOrder] = useState<AppOrder | null>(null);
+  const [paid, setPaid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,11 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
         ? loyalty.catalogDiscount.discountCents
         : 0;
   const due = Math.max(0, subtotalCents - rewardCents);
+
+  // Keep cart lines visible through pay — use order snapshot once created.
+  const displayLines: CartLine[] = order?.lineItems?.length
+    ? order.lineItems
+    : lines;
 
   async function createOrder() {
     setError(null);
@@ -61,7 +67,7 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
     }
   }
 
-  if (lines.length === 0 && !order) {
+  if (displayLines.length === 0 && !order) {
     return (
       <div className="empty-cart">
         <p>Your cart is empty.</p>
@@ -72,29 +78,12 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
     );
   }
 
-  if (order) {
-    return (
-      <div className="checkout-panel">
-        <h2>Pay for pickup</h2>
-        <p className="lede">
-          Order <code>{order.id}</code> · {formatUsd(order.totalCents)} · NOPA
-          pickup
-        </p>
-        <PaymentForm
-          mode={mode}
-          order={order}
-          onPaid={() => {
-            clear();
-          }}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="checkout-panel">
+    <div
+      className={`checkout-panel checkout-panel--sheet${paid ? " checkout-panel--paid" : ""}`}
+    >
       <ul className="cart-lines">
-        {lines.map((line) => (
+        {displayLines.map((line) => (
           <li key={line.lineId} className="cart-line">
             <div>
               <strong>
@@ -105,83 +94,107 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
               </p>
               <p>{formatUsd(cartLineTotal(line))}</p>
             </div>
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => removeLine(line.lineId)}
-            >
-              Remove
-            </button>
+            {!order ? (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => removeLine(line.lineId)}
+              >
+                Remove
+              </button>
+            ) : null}
           </li>
         ))}
       </ul>
 
-      <div className="totals">
-        <div>
-          <span>Subtotal</span>
-          <span>{formatUsd(subtotalCents)}</span>
-        </div>
-        {rewardCents > 0 ? (
-          <div>
-            <span>Rewards</span>
-            <span>−{formatUsd(rewardCents)}</span>
+      {!order ? (
+        <>
+          <div className="totals">
+            <div>
+              <span>Subtotal</span>
+              <span>{formatUsd(subtotalCents)}</span>
+            </div>
+            {rewardCents > 0 ? (
+              <div>
+                <span>Rewards</span>
+                <span>−{formatUsd(rewardCents)}</span>
+              </div>
+            ) : null}
+            <div className="totals__due">
+              <span>Due</span>
+              <span>{formatUsd(due)}</span>
+            </div>
           </div>
-        ) : null}
-        <div className="totals__due">
-          <span>Due</span>
-          <span>{formatUsd(due)}</span>
-        </div>
-      </div>
 
-      <label className="field">
-        Pickup name
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name for the counter"
-          required
-        />
-      </label>
-      <label className="field">
-        Phone (rewards lookup)
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="415…"
-          inputMode="tel"
-        />
-      </label>
-      <label className="field">
-        Pickup note
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Optional"
-        />
-      </label>
+          <label className="field">
+            Pickup name
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name for the counter"
+              required
+            />
+          </label>
+          <label className="field">
+            Phone (rewards lookup)
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="415…"
+              inputMode="tel"
+            />
+          </label>
+          <label className="field">
+            Pickup note
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional"
+            />
+          </label>
 
-      {loyalty?.available ? (
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={applyRewards}
-            onChange={(e) => setApplyRewards(e.target.checked)}
+          {loyalty?.available ? (
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={applyRewards}
+                onChange={(e) => setApplyRewards(e.target.checked)}
+              />
+              Redeem rewards — {loyalty.message}
+            </label>
+          ) : null}
+
+          {error ? <p className="form-error">{error}</p> : null}
+
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={busy || !name.trim()}
+            onClick={createOrder}
+          >
+            {busy ? "Creating order…" : "Continue to payment"}
+          </button>
+          <p className="fine-print">
+            Pickup only at NOPA · 608 Divisadero St · Hours 11–10 · no delivery
+          </p>
+        </>
+      ) : (
+        <div className="checkout-pay">
+          <h2>Pay for pickup</h2>
+          <p className="lede">
+            Order <code>{order.id}</code> · {formatUsd(order.totalCents)} · NOPA
+            pickup
+          </p>
+          <PaymentForm
+            mode={mode}
+            order={order}
+            onPaid={() => {
+              setPaid(true);
+              clear();
+            }}
           />
-          Redeem rewards — {loyalty.message}
-        </label>
-      ) : null}
-
-      {error ? <p className="form-error">{error}</p> : null}
-
-      <button
-        type="button"
-        className="btn btn--primary"
-        disabled={busy || !name.trim()}
-        onClick={createOrder}
-      >
-        {busy ? "Creating order…" : "Continue to payment"}
-      </button>
-      <p className="fine-print">Pickup only at NOPA · 608 Divisadero St · Hours 11–10 · no delivery</p>
+        </div>
+      )}
     </div>
   );
 }

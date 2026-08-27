@@ -38,12 +38,16 @@ export function buildCartLine(opts: {
 
   const modifiers = opts.item.modifierLists.flatMap((list) => {
     const selected = opts.selections[list.id] ?? [];
-    return pricedFromList(list, selected, recipeMixinIds).map((p) => ({
-      modifierListId: list.id,
-      modifierId: p.modifierId,
-      name: p.name,
-      priceCents: p.priceCents,
-    }));
+    return pricedFromList(list, selected, recipeMixinIds).map((p) => {
+      const mod = list.modifiers.find((m) => m.id === p.modifierId);
+      return {
+        modifierListId: list.id,
+        modifierId: p.modifierId,
+        name: p.name,
+        priceCents: p.priceCents,
+        noSku: mod?.noSku || undefined,
+      };
+    });
   });
 
   return {

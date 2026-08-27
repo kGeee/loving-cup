@@ -16,6 +16,11 @@ export interface MenuModifier {
   ordinal?: number;
   /** e.g. size `akid` — sold out, cannot select / order. */
   soldOut?: boolean;
+  /**
+   * Printed chip with no Square Catalog modifier.
+   * Grey in UI; demo still charges +$0.75; never POST to live Square.
+   */
+  noSku?: boolean;
 }
 
 export interface MenuModifierList {
@@ -77,6 +82,8 @@ export interface CartModifierSelection {
   modifierId: string;
   name: string;
   priceCents: MoneyCents;
+  /** Printed-only chip — strip before live Square CreateOrder. */
+  noSku?: boolean;
 }
 
 export interface CartLine {

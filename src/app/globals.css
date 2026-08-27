@@ -156,12 +156,13 @@ code {
 /* —— Hero —— */
 .hero {
   position: relative;
-  min-height: min(88vh, 720px);
+  min-height: min(72vh, 640px);
   display: grid;
   align-items: end;
   overflow: hidden;
-  color: var(--cream);
+  color: var(--ink);
   isolation: isolate;
+  background: var(--cream);
 }
 
 .hero__plane {
@@ -172,21 +173,7 @@ code {
   height: 100%;
   object-fit: cover;
   object-position: center 35%;
-  animation: hero-ken 18s ease-in-out infinite alternate;
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: linear-gradient(
-    180deg,
-    rgba(60, 47, 41, 0.2) 0%,
-    rgba(60, 47, 41, 0.55) 55%,
-    rgba(60, 47, 41, 0.82) 100%
-  );
-  pointer-events: none;
+  opacity: 0.92;
 }
 
 .hero__content {
@@ -202,7 +189,6 @@ code {
   width: min(280px, 72vw);
   height: auto;
   margin: 0 0 1.1rem;
-  filter: brightness(0) invert(1);
   animation: fade-up 0.65s ease both;
 }
 
@@ -212,12 +198,13 @@ code {
   letter-spacing: 0.02em;
   margin: 0 0 0.55rem;
   max-width: 22ch;
+  color: var(--ink);
 }
 
 .hero__sub {
   margin: 0 0 1.35rem;
   font-size: var(--text-15);
-  color: rgba(245, 239, 230, 0.88);
+  color: var(--ink-soft);
   max-width: 36ch;
 }
 
@@ -282,6 +269,18 @@ code {
   transition: opacity 0.15s ease;
 }
 
+button.menu-row__body--btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.95rem 0;
+}
+
 .menu-row:not(.menu-row--soldout) .menu-row__body:hover {
   opacity: 0.82;
 }
@@ -291,6 +290,7 @@ code {
   height: 72px;
   background: rgba(60, 47, 41, 0.04);
   overflow: hidden;
+  /* Empty cell when no tile photo — do not invent cups. */
 }
 
 .menu-row__photo img {
@@ -301,25 +301,35 @@ code {
 }
 
 .menu-row__name {
-  font-size: var(--text-18);
-  font-weight: 500;
   margin: 0 0 0.15rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
+  font-family: var(--font);
+  font-size: var(--text-15);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--berry);
 }
 
-.menu-row__desc {
+.menu-row__desc,
+.board-sheet__recipe {
   margin: 0;
-  color: var(--ink-soft);
-  font-size: var(--text-13);
+  font-family: var(--font-marker), "Permanent Marker", cursive;
+  font-size: var(--text-15);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  line-height: 1.35;
 }
 
 .menu-row__price {
   margin: 0.3rem 0 0;
-  font-size: var(--text-15);
+  font-size: var(--text-13);
   font-weight: 500;
+  color: var(--ink-soft);
 }
 
 .sold-out {
@@ -332,6 +342,54 @@ code {
 
 .menu-row--soldout {
   opacity: 0.72;
+}
+
+/* —— Board sheet (named + MYO over home menu) —— */
+.board-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+}
+
+.board-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(60, 47, 41, 0.42);
+  cursor: pointer;
+}
+
+.board-sheet__panel {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  padding: 1rem 1.15rem 1.5rem;
+  animation: fade-up 0.28s ease both;
+}
+
+.board-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.board-sheet__title {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--text-15);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--berry);
 }
 
 /* —— Buttons —— */
@@ -504,10 +562,29 @@ code {
   color: var(--cream);
 }
 
+.chip--no-sku:not(.chip--on):not(.chip--locked) {
+  color: rgba(60, 47, 41, 0.45);
+  border-color: rgba(60, 47, 41, 0.18);
+  background: rgba(60, 47, 41, 0.04);
+}
+
+.chip--no-sku:not(.chip--on) span {
+  color: rgba(60, 47, 41, 0.4);
+}
+
 .btn--berry-add {
   min-width: 5.5rem;
+  height: 48px;
+  padding: 0 1.25rem;
   background: var(--berry);
   color: #fff;
+  font-size: var(--text-15);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn--berry-add:hover {
@@ -549,6 +626,29 @@ code {
   padding: 0 1.15rem 3rem;
   display: grid;
   gap: 1rem;
+}
+
+.checkout-panel--sheet {
+  position: relative;
+}
+
+.checkout-pay {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pay-form-wrap {
+  position: relative;
+  min-height: 4rem;
+}
+
+.pay-sheet-overlay {
+  pointer-events: none;
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  padding: 1rem 0 0.5rem;
+  text-align: center;
 }
 
 .cart-lines {
@@ -678,22 +778,8 @@ code {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transform: scale(0.92);
   opacity: 0;
-}
-
-.pay-swirl--in .pay-swirl__cup,
-.pay-swirl--drop .pay-swirl__cup,
-.pay-swirl--swirl .pay-swirl__cup,
-.pay-swirl--done .pay-swirl__cup,
-.pay-swirl--reduced .pay-swirl__cup {
-  animation: pay-cup-in 100ms ease-out forwards;
-}
-
-.pay-swirl--reduced .pay-swirl__cup {
-  animation: none;
-  opacity: 1;
-  transform: none;
+  transform: scale(0.92);
 }
 
 .pay-swirl__mixins {
@@ -710,7 +796,7 @@ code {
   height: 36px;
   border-radius: 0;
   opacity: 0;
-  transform: translateY(-28px) scale(1);
+  transform: translateY(-20px) scale(1);
   left: calc(42px + (var(--i, 0) - 2.5) * 10px);
   top: 28px;
 }
@@ -727,26 +813,29 @@ code {
   background: var(--ink);
 }
 
-.pay-swirl--drop .pay-swirl__sprite,
-.pay-swirl--drop .pay-swirl__dot,
-.pay-swirl--swirl .pay-swirl__sprite,
-.pay-swirl--swirl .pay-swirl__dot,
-.pay-swirl--done .pay-swirl__sprite,
-.pay-swirl--done .pay-swirl__dot {
-  animation: pay-mixin-drop 400ms ease-out forwards;
+/*
+ * Single 800ms wall-clock timeline — delays/durations do NOT stack past 800ms.
+ * 0–100 cup in · 100–500 drops (60ms stagger, short duration) · 500–720 swirl · 720–800 hold
+ */
+.pay-swirl--play .pay-swirl__cup {
+  animation: pay-cup-in 100ms ease-out forwards;
 }
 
-.pay-swirl--swirl .pay-swirl__stage {
-  animation: pay-swirl-spin 220ms ease-in-out forwards;
+.pay-swirl--play .pay-swirl__sprite,
+.pay-swirl--play .pay-swirl__dot {
+  /* delay 100 + i*60; duration 100 → last (i=5) ends at 500ms */
+  animation: pay-mixin-drop 100ms ease-out calc(100ms + (var(--i, 0) * 60ms))
+    forwards;
 }
 
-.pay-swirl--done .pay-swirl__stage {
-  transform: rotate(0deg);
+.pay-swirl--play .pay-swirl__stage {
+  animation: pay-swirl-spin 220ms ease-in-out 500ms forwards;
 }
 
-.pay-swirl--done .pay-swirl__sprite,
-.pay-swirl--done .pay-swirl__dot {
-  opacity: 0;
+.pay-swirl--reduced .pay-swirl__cup {
+  animation: none;
+  opacity: 1;
+  transform: none;
 }
 
 .pay-swirl--reduced .pay-swirl__sprite,
@@ -766,17 +855,13 @@ code {
 }
 
 @keyframes pay-mixin-drop {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(-28px) scale(1);
+    transform: translateY(-20px) scale(1);
   }
-  70% {
+  to {
     opacity: 1;
-    transform: translateY(8px) scale(0.55);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(14px) scale(0.4);
+    transform: translateY(12px) scale(0.4);
   }
 }
 

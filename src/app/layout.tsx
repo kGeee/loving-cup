@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
+import { Permanent_Marker } from "next/font/google";
 import { CartProvider } from "@/components/CartProvider";
 import { StickyBar } from "@/components/StickyBar";
 import "./globals.css";
+
+const permanentMarker = Permanent_Marker({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-marker",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Loving Cup — NOPA order ahead",
@@ -16,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className={`${permanentMarker.variable} antialiased`}>
         <CartProvider>
           <StickyBar />
           {children}

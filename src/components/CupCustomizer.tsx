@@ -36,21 +36,23 @@ function defaultSelections(
   return init;
 }
 
-function chipPriceLabel(
-  list: MenuModifierList,
-  amount: number,
-  locked: boolean,
-): string | null {
+function chipPriceLabel(amount: number, locked: boolean): string | null {
   if (locked) return "Included";
-  // MYO: first 2 included — do not put +$0.75 on every chip.
-  if (list.role === "mixin" && (list.includedCount ?? 0) > 0) {
-    return null;
-  }
+  // MYO: legend says "2 included"; chips still print +$0.75 (first 2 selected price $0 in cart).
   if (amount <= 0) return null;
   return `+${formatUsd(amount)}`;
 }
 
-export function CupCustomizer({ item }: { item: MenuItem }) {
+export function CupCustomizer({
+  item,
+  onAdded,
+  onCancel,
+}: {
+  item: MenuItem;
+  /** Sheet mode: called after add instead of navigating to /cart. */
+  onAdded?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const { addLine } = useCart();
   const recipeLocked = useMemo(
@@ -71,7 +73,6 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
   // list stays size-only — demo local add-ons are demo-catalog only.
   const sheets = useMemo(() => {
     if (isNamed || isMyo) return item.modifierLists;
-    // Named without recipe ids (live): hide base if present so size stays first.
     return item.modifierLists.filter((l) => l.role !== "base");
   }, [item.modifierLists, isNamed, isMyo]);
 
@@ -97,7 +98,6 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
   function toggle(listId: string, modId: string, list: MenuModifierList) {
     const mod = list.modifiers.find((m) => m.id === modId);
     if (mod?.soldOut) return;
-    // Recipe mix-ins stay locked on named cups.
     if (recipeLocked.has(modId)) return;
     setSelections((prev) => {
       const current = prev[listId] ?? [];
@@ -146,7 +146,12 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
         lineId: crypto.randomUUID(),
       });
       addLine(line);
-      router.push("/cart");
+      if (onAdded) {
+        onAdded();
+        router.push("/cart");
+      } else {
+        router.push("/cart");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add to cart");
     }
@@ -156,6 +161,11 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
     return (
       <div className="customizer">
         <p className="sold-out-banner">Sold out — cannot be ordered.</p>
+        {onCancel ? (
+          <button type="button" className="btn btn--ghost" onClick={onCancel}>
+            Close
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -192,7 +202,7 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
               const on = (selections[list.id] ?? []).includes(m.id) || locked;
               const priceLabel = m.soldOut
                 ? null
-                : chipPriceLabel(list, m.price.amount, locked);
+                : chipPriceLabel(m.price.amount, locked);
               return (
                 <button
                   key={m.id}
@@ -200,7 +210,7 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
                   disabled={m.soldOut || locked}
                   aria-disabled={m.soldOut || locked || undefined}
                   aria-pressed={on}
-                  className={`chip ${on ? "chip--on" : ""} ${m.soldOut ? "chip--soldout" : ""} ${locked ? "chip--locked" : ""}`}
+                  className={`chip ${on ? "chip--on" : ""} ${m.soldOut ? "chip--soldout" : ""} ${locked ? "chip--locked" : ""} ${m.noSku && !locked ? "chip--no-sku" : ""}`}
                   onClick={() => toggle(list.id, m.id, list)}
                 >
                   {m.name}

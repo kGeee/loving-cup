@@ -26,16 +26,32 @@ declare global {
 }
 
 /** Crops from existing board stills — never generate froyo images. */
-const STILL_CROPS = [
-  { src: "/cup-salty-dog.webp", pos: "28% 42%" },
-  { src: "/cup-salty-dog.webp", pos: "72% 58%" },
-  { src: "/cup-strawberry-shortcake.webp", pos: "45% 35%" },
-  { src: "/cup-strawberry-shortcake.webp", pos: "62% 68%" },
-  { src: "/cup-thinner-mint.webp", pos: "40% 50%" },
-  { src: "/cup-thinner-mint.webp", pos: "70% 38%" },
-  { src: "/cup-peanut-butter-cup.webp", pos: "50% 45%" },
-  { src: "/cup-peanut-butter-cup.webp", pos: "35% 65%" },
+const BOARD_STILLS = [
+  "/cup-salty-dog.webp",
+  "/cup-strawberry-shortcake.webp",
+  "/cup-thinner-mint.webp",
+  "/cup-peanut-butter-cup.webp",
 ] as const;
+
+/** Preferred still crop per topping — each board still used at most once per swirl. */
+const MIXIN_STILL_PREF: Record<string, { src: (typeof BOARD_STILLS)[number]; pos: string }> = {
+  pretzels: { src: "/cup-salty-dog.webp", pos: "70% 55%" },
+  "fresh strawberries": {
+    src: "/cup-strawberry-shortcake.webp",
+    pos: "45% 35%",
+  },
+  strawberries: { src: "/cup-strawberry-shortcake.webp", pos: "45% 35%" },
+  "animal crackers": {
+    src: "/cup-strawberry-shortcake.webp",
+    pos: "62% 68%",
+  },
+  "oreo cookie": { src: "/cup-thinner-mint.webp", pos: "40% 50%" },
+  "jr mints": { src: "/cup-thinner-mint.webp", pos: "70% 38%" },
+  "peanut butter": { src: "/cup-peanut-butter-cup.webp", pos: "50% 45%" },
+  "chocolate chips": { src: "/cup-peanut-butter-cup.webp", pos: "35% 65%" },
+  nutella: { src: "/cup-thinner-mint.webp", pos: "55% 60%" },
+  "salted caramel": { src: "/cup-salty-dog.webp", pos: "35% 40%" },
+};
 
 const NAMED_STILL: Record<string, string> = {
   salty_dog: "/cup-salty-dog.webp",
@@ -55,13 +71,26 @@ function isSizeMod(m: CartModifierSelection): boolean {
 }
 
 function isBaseMod(m: CartModifierSelection): boolean {
-  return /\b(nonfat|non-dairy|half|vanilla|chocolate|banana)\b/i.test(m.name) &&
-    !/\b(cookie|chips|sauce|strawberr|blueberr|oreo|mint|pretzel|cracker|coconut|nutella|almond butter|heath|mango|cereal)\b/i.test(
+  return (
+    /\b(nonfat|non-dairy|half|vanilla|chocolate|banana)\b/i.test(m.name) &&
+    !/\b(cookie|chips|sauce|strawberr|blueberr|oreo|mint|pretzel|cracker|coconut|nutella|almond butter|heath|mango|cereal|caramel)\b/i.test(
       m.name,
-    );
+    )
+  );
 }
 
-/** Named: locked recipe mix-ins first (they appear first on the line), then extras. MYO: selected chips. Cap 6. Cone excluded. */
+function mixinKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Ordered mix-in crops. Cap 6. Each board still file at most once
+ * (never cup-salty-dog twice). No still left → 16px --ink dots. Cone excluded.
+ */
 function spritesForOrder(order: AppOrder): Sprite[] {
   const line: CartLine | undefined = order.lineItems[0];
   if (!line) return [];
@@ -70,28 +99,34 @@ function spritesForOrder(order: AppOrder): Sprite[] {
     (m) => !isConeMod(m) && !isSizeMod(m) && !isBaseMod(m),
   );
 
-  return mixins.slice(0, 6).map((m, i) => {
-    const crop = STILL_CROPS[i % STILL_CROPS.length];
-    // Prefer a named cup still when the line maps to one; otherwise board crop.
-    const fromItem = Object.entries(NAMED_STILL).find(([key]) =>
-      line.itemId.includes(key),
-    )?.[1];
-    if (!crop) return { key: m.modifierId };
-    return {
-      key: m.modifierId,
-      src: fromItem && i < 2 ? fromItem : crop.src,
-      pos: crop.pos,
-    };
+  const usedStills = new Set<string>();
+
+  return mixins.slice(0, 6).map((m) => {
+    const pref = MIXIN_STILL_PREF[mixinKey(m.name)];
+    if (pref && !usedStills.has(pref.src)) {
+      usedStills.add(pref.src);
+      return { key: m.modifierId, src: pref.src, pos: pref.pos };
+    }
+    const next = BOARD_STILLS.find((s) => !usedStills.has(s));
+    if (next) {
+      usedStills.add(next);
+      return { key: m.modifierId, src: next, pos: "48% 42%" };
+    }
+    // Missing still → ink dot
+    return { key: m.modifierId };
   });
 }
 
+/** Vessel = set still of branded cup. NEVER /logo.webp. */
 function cupStillForOrder(order: AppOrder): string {
   const line = order.lineItems[0];
-  if (!line) return "/logo.webp";
-  const hit = Object.entries(NAMED_STILL).find(([key]) =>
-    line.itemId.includes(key),
-  );
-  return hit?.[1] ?? "/logo.webp";
+  if (line) {
+    const hit = Object.entries(NAMED_STILL).find(([key]) =>
+      line.itemId.includes(key),
+    );
+    if (hit) return hit[1];
+  }
+  return "/hero-cones.webp";
 }
 
 function PaySwirl({
@@ -105,9 +140,6 @@ function PaySwirl({
 }) {
   const sprites = useMemo(() => spritesForOrder(order), [order]);
   const cupSrc = useMemo(() => cupStillForOrder(order), [order]);
-  const [phase, setPhase] = useState<"in" | "drop" | "swirl" | "done">(
-    reducedMotion ? "done" : "in",
-  );
   const finishedRef = useRef(onFinished);
   finishedRef.current = onFinished;
 
@@ -116,21 +148,14 @@ function PaySwirl({
       finishedRef.current();
       return;
     }
-    const t1 = window.setTimeout(() => setPhase("drop"), 100);
-    const t2 = window.setTimeout(() => setPhase("swirl"), 500);
-    const t3 = window.setTimeout(() => setPhase("done"), 720);
-    const t4 = window.setTimeout(() => finishedRef.current(), 800);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-      window.clearTimeout(t4);
-    };
+    // Hard wall-clock: 800ms then Paid. CSS delays must not stack past this.
+    const t = window.setTimeout(() => finishedRef.current(), 800);
+    return () => window.clearTimeout(t);
   }, [reducedMotion]);
 
   return (
     <div
-      className={`pay-swirl pay-swirl--${phase}${reducedMotion ? " pay-swirl--reduced" : ""}`}
+      className={`pay-swirl${reducedMotion ? " pay-swirl--reduced" : " pay-swirl--play"}`}
       aria-hidden
       style={{ pointerEvents: "none" }}
     >
@@ -150,7 +175,6 @@ function PaySwirl({
                 style={{
                   backgroundImage: `url(${s.src})`,
                   backgroundPosition: s.pos,
-                  animationDelay: `${100 + i * 60}ms`,
                   ["--i" as string]: String(i),
                 }}
               />
@@ -158,7 +182,9 @@ function PaySwirl({
               <span
                 key={s.key}
                 className="pay-swirl__dot"
-                style={{ animationDelay: `${100 + i * 60}ms` }}
+                style={{
+                  ["--i" as string]: String(i),
+                }}
               />
             ),
           )}
@@ -175,7 +201,7 @@ export function PaymentForm({
 }: {
   mode: "demo" | "square";
   order: AppOrder;
-  onPaid: () => void;
+  onPaid: (paid: AppOrder) => void;
 }) {
   const [status, setStatus] = useState<
     "idle" | "ready" | "paying" | "swirling" | "done" | "error"
@@ -264,10 +290,11 @@ export function PaymentForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Payment failed");
-      setPaidOrder(data.order as AppOrder);
+      const paid = data.order as AppOrder;
+      setPaidOrder(paid);
       if (reducedMotion) setShowPaidLabel(true);
       setStatus("swirling");
-      onPaidRef.current();
+      onPaidRef.current(paid);
     } catch (e) {
       // Failure never plays the swirl; Try again stays on this sheet.
       setMessage(e instanceof Error ? e.message : "Payment failed");
@@ -296,57 +323,73 @@ export function PaymentForm({
     setStatus("done");
   }
 
-  if ((status === "swirling" || status === "done") && paidOrder) {
-    return (
-      <div className="pay-success">
-        <PaySwirl
-          order={paidOrder}
-          reducedMotion={reducedMotion}
-          onFinished={onSwirlFinished}
-        />
-        {showPaidLabel ? (
-          <p className="pay-success__paid">Paid · NOPA pickup</p>
-        ) : (
-          <p className="pay-success__paid pay-success__paid--slot" aria-hidden>
-            &nbsp;
-          </p>
-        )}
-        <p className="pay-success__meta">
-          {formatUsd(paidOrder.totalCents)} · order{" "}
-          <code>{paidOrder.id}</code>
-        </p>
-        <Link className="btn btn--primary" href="/admin">
-          View in admin
-        </Link>
-      </div>
-    );
-  }
+  const showOverlay =
+    (status === "swirling" || status === "done") && paidOrder;
 
   return (
-    <form className="pay-form" onSubmit={onSubmit}>
-      {mode === "demo" ? (
-        <div className="fake-pay">
-          <p>
-            <strong>Fake-pay (demo)</strong> — no card charged. Creates a paid
-            pickup order in the local demo store.
-          </p>
+    <div className="pay-form-wrap">
+      {showOverlay ? (
+        <div className="pay-sheet-overlay" style={{ pointerEvents: "none" }}>
+          <PaySwirl
+            order={paidOrder}
+            reducedMotion={reducedMotion}
+            onFinished={onSwirlFinished}
+          />
+          {showPaidLabel ? (
+            <p className="pay-success__paid">Paid · NOPA pickup</p>
+          ) : (
+            <p
+              className="pay-success__paid pay-success__paid--slot"
+              aria-hidden
+            >
+              &nbsp;
+            </p>
+          )}
+          {status === "done" ? (
+            <p className="pay-success__meta">
+              {formatUsd(paidOrder.totalCents)} · order{" "}
+              <code>{paidOrder.id}</code>
+            </p>
+          ) : null}
+          {status === "done" ? (
+            <Link
+              className="btn btn--primary"
+              href="/admin"
+              style={{ pointerEvents: "auto" }}
+            >
+              View in admin
+            </Link>
+          ) : null}
         </div>
-      ) : (
-        <div id="card-container" className="card-box" />
-      )}
-      {message ? <p className="form-error">{message}</p> : null}
-      <button
-        type="submit"
-        className="btn btn--primary"
-        disabled={status === "paying" || status === "idle"}
-      >
-        {status === "paying"
-          ? "Charging…"
-          : status === "error"
-            ? `Try again · ${formatUsd(order.totalCents)}`
-            : `Pay ${formatUsd(order.totalCents)}`}
-      </button>
-    </form>
+      ) : null}
+
+      {!showOverlay ? (
+        <form className="pay-form" onSubmit={onSubmit}>
+          {mode === "demo" ? (
+            <div className="fake-pay">
+              <p>
+                <strong>Fake-pay (demo)</strong> — no card charged. Creates a
+                paid pickup order in the local demo store.
+              </p>
+            </div>
+          ) : (
+            <div id="card-container" className="card-box" />
+          )}
+          {message ? <p className="form-error">{message}</p> : null}
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={status === "paying" || status === "idle"}
+          >
+            {status === "paying"
+              ? "Charging…"
+              : status === "error"
+                ? `Try again · ${formatUsd(order.totalCents)}`
+                : `Pay ${formatUsd(order.totalCents)}`}
+          </button>
+        </form>
+      ) : null}
+    </div>
   );
 }
 

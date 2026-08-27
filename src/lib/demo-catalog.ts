@@ -48,16 +48,17 @@ const BASES = [
 
 /**
  * Printed mix-in chips (extras +$0.75). Toasted coconut once.
- * Unmapped recipe names are locked chips on their cup only — not new extras here.
+ * Square-subset names stay orderable with demo SKU ids.
+ * The 12 board-only names below are grey (`noSku`) — demo still +$0.75; never POST live.
+ * Unmapped recipe names (Mango, Heath Bar, …) are locked chips on their cup only.
  */
-const MIX_INS = [
+const SQUARE_MIX_INS = [
   "Fresh Strawberries",
   "Blueberries",
   "Banana",
   "Oreo Cookie",
   "Graham Cracker",
   "Chocolate Chips",
-  "Caramel Sauce",
   "Hot Fudge",
   "Sprinkles",
   "Almonds",
@@ -70,6 +71,26 @@ const MIX_INS = [
   "Jr Mints",
 ] as const;
 
+/** Board-only printed names — no Square modifier. Do not invent beyond this list. */
+const NOSKU_MIX_INS = [
+  "Almond Butter",
+  "Cookie Dough",
+  "English Toffee",
+  "Espresso",
+  "Granola",
+  "Pecans",
+  "Pineapple",
+  "Pistachios",
+  "Raspberries",
+  "Walnuts",
+  "Ganache",
+  "Salted Caramel",
+] as const;
+
+const MIX_INS = [...SQUARE_MIX_INS, ...NOSKU_MIX_INS] as const;
+
+const NOSKU_KEYS = new Set(NOSKU_MIX_INS.map((n) => n.toLowerCase()));
+
 /** Recipe ingredient → printed MIX_INS name when the chip already exists. */
 const RECIPE_ALIASES: Record<string, (typeof MIX_INS)[number]> = {
   oreos: "Oreo Cookie",
@@ -78,14 +99,18 @@ const RECIPE_ALIASES: Record<string, (typeof MIX_INS)[number]> = {
   "junior mints": "Jr Mints",
   "fresh strawberries": "Fresh Strawberries",
   strawberries: "Fresh Strawberries",
-  "caramel sauce": "Caramel Sauce",
-  "salted caramel sauce": "Caramel Sauce",
-  "salted caramel": "Caramel Sauce",
+  // Salted Caramel aliases over Caramel Sauce (Salty Dog / Crunchy Cereal).
+  "caramel sauce": "Salted Caramel",
+  "salted caramel sauce": "Salted Caramel",
+  "salted caramel": "Salted Caramel",
   pretzels: "Pretzels",
   blueberries: "Blueberries",
   "toasted coconut": "Toasted Coconut",
   nutella: "Nutella",
   "animal crackers": "Animal Crackers",
+  "almond butter": "Almond Butter",
+  "cookie dough": "Cookie Dough",
+  espresso: "Espresso",
 };
 
 /** Yogurt bases in the ingredient line — not mix-in chips. */
@@ -160,6 +185,7 @@ function myoMixinList(itemKey: string): MenuModifierList {
       name,
       price: USD(75),
       ordinal: i,
+      noSku: NOSKU_KEYS.has(name.toLowerCase()) || undefined,
     })),
   };
 }
@@ -192,7 +218,6 @@ function namedMixinList(
   itemKey: string,
   recipeNames: string[],
 ): { list: MenuModifierList; recipeMixinIds: string[] } {
-  const printedKeys = new Set(MIX_INS.map((n) => normKey(n)));
   const recipeMixinIds: string[] = [];
   const mods: MenuModifier[] = [];
   let ordinal = 0;
@@ -211,6 +236,9 @@ function namedMixinList(
       name: display,
       price: USD(0),
       ordinal: ordinal++,
+      noSku: printed
+        ? NOSKU_KEYS.has(printed.toLowerCase()) || undefined
+        : true,
     });
   }
 
@@ -218,14 +246,13 @@ function namedMixinList(
     const name = MIX_INS[i];
     const id = `mod_${itemKey}_mixin_${i}`;
     if (recipeMixinIds.includes(id)) continue;
-    // Skip if an unmapped locked chip already occupies this printed name.
     if (mods.some((m) => normKey(m.name) === normKey(name))) continue;
-    void printedKeys;
     mods.push({
       id,
       name,
       price: USD(75),
       ordinal: ordinal++,
+      noSku: NOSKU_KEYS.has(name.toLowerCase()) || undefined,
     });
   }
 
