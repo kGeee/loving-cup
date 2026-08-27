@@ -1,0 +1,17 @@
+{
+  "name": "Loving Cup",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "npm run dev",
+      "description": "Next.js dev server (App Router) on http://localhost:3000. Runs in demo/POC mode unless SQUARE_* secrets are set."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
