@@ -314,6 +314,22 @@ export function CupBuildAnimation({
       }
     >
       <div className="cup-build__counter">
+        {forceMotion ? (
+          <span
+            style={{
+              position: "absolute",
+              top: 6,
+              left: 8,
+              zIndex: 20,
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "var(--ink-soft)",
+            }}
+          >
+            {phase}
+          </span>
+        ) : null}
         <div className="cup-build__perspective">
           <div className="cup-build__stage">
             <div className="cup-build__glow" />

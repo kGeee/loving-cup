@@ -780,6 +780,7 @@ button.menu-row__body--btn {
 }
 
 .cup-build__counter {
+  position: relative;
   width: 280px;
   height: 300px;
   border-radius: 2px;
