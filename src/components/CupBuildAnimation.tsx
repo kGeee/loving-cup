@@ -3,7 +3,6 @@
 import type { AppOrder } from "@/types/menu";
 import {
   CUP_BUILD_MS,
-  buildProgress,
   expandToppingBits,
   phaseAt,
   toppingsForOrder,
@@ -11,7 +10,7 @@ import {
   type BuildPhase,
 } from "@/lib/cup-build-order";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export { CUP_BUILD_MS };
 export type { BuildPhase };
@@ -44,31 +43,49 @@ export function CupBuildAnimation({
   );
   const skipMotion = reducedMotion && !forceMotion;
   const [phase, setPhase] = useState<BuildPhase>(skipMotion ? "reveal" : "cup");
-  const [progress, setProgress] = useState(skipMotion ? 1 : 0);
+  const [sceneReady, setSceneReady] = useState(false);
+  /** Wall-clock 0–1 progress — read from R3F useFrame (avoids React thrash). */
+  const progressRef = useRef(skipMotion ? 1 : 0);
   const finishedRef = useRef(onFinished);
   finishedRef.current = onFinished;
+
+  const onSceneReady = useCallback(() => setSceneReady(true), []);
 
   useEffect(() => {
     if (skipMotion) {
       setPhase("reveal");
-      setProgress(1);
+      progressRef.current = 1;
       finishedRef.current();
       return;
     }
+    // Fallback if WebGL ready signal is delayed (e.g. slow GPU init).
+    if (sceneReady) return;
+    const t = window.setTimeout(() => setSceneReady(true), 400);
+    return () => window.clearTimeout(t);
+  }, [skipMotion, sceneReady]);
+
+  useEffect(() => {
+    if (skipMotion) return;
+    // Wait until the WebGL scene has mounted so the guest sees the full make.
+    if (!sceneReady) return;
+
     setPhase("cup");
-    setProgress(0);
-    let elapsed = 0;
-    let last = performance.now();
+    progressRef.current = 0;
+    const start = performance.now();
     let raf = 0;
     let cancelled = false;
+    let lastPhase: BuildPhase = "cup";
     const tick = (now: number) => {
       if (cancelled) return;
-      elapsed += Math.min(Math.max(now - last, 0), 48);
-      last = now;
-      const e = Math.min(CUP_BUILD_MS, elapsed);
-      setProgress(buildProgress(e));
-      setPhase(phaseAt(e));
+      const e = Math.min(CUP_BUILD_MS, now - start);
+      progressRef.current = Math.min(1, Math.max(0, e / CUP_BUILD_MS));
+      const next = phaseAt(e);
+      if (next !== lastPhase) {
+        lastPhase = next;
+        setPhase(next);
+      }
       if (e >= CUP_BUILD_MS) {
+        setPhase("reveal");
         finishedRef.current();
         return;
       }
@@ -79,7 +96,7 @@ export function CupBuildAnimation({
       cancelled = true;
       cancelAnimationFrame(raf);
     };
-  }, [skipMotion]);
+  }, [skipMotion, sceneReady]);
 
   return (
     <div
@@ -93,9 +110,10 @@ export function CupBuildAnimation({
           <span className="cup-build__phase-label">{phase}</span>
         ) : null}
         <CupBuildScene
-          progress={progress}
+          progressRef={progressRef}
           palette={yogurt}
           bits={bits}
+          onReady={onSceneReady}
         />
       </div>
     </div>
