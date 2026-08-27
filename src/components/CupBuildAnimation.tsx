@@ -3,10 +3,11 @@
 import type { AppOrder } from "@/types/menu";
 import {
   CUP_BUILD_MS,
+  baseYogurtForOrder,
+  blendedYogurtForOrder,
   expandToppingBits,
   phaseAt,
   toppingsForOrder,
-  yogurtForOrder,
   type BuildPhase,
 } from "@/lib/cup-build-order";
 import dynamic from "next/dynamic";
@@ -36,7 +37,8 @@ export function CupBuildAnimation({
   onFinished: () => void;
   forceMotion?: boolean;
 }) {
-  const yogurt = useMemo(() => yogurtForOrder(order), [order]);
+  const basePalette = useMemo(() => baseYogurtForOrder(order), [order]);
+  const blendedPalette = useMemo(() => blendedYogurtForOrder(order), [order]);
   const bits = useMemo(
     () => expandToppingBits(toppingsForOrder(order)),
     [order],
@@ -111,7 +113,8 @@ export function CupBuildAnimation({
         ) : null}
         <CupBuildScene
           progressRef={progressRef}
-          palette={yogurt}
+          basePalette={basePalette}
+          blendedPalette={blendedPalette}
           bits={bits}
           onReady={onSceneReady}
         />

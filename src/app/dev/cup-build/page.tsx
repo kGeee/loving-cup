@@ -24,6 +24,12 @@ const DEMO_ORDER: AppOrder = {
       unitPriceCents: 499,
       modifiers: [
         {
+          modifierListId: "base",
+          modifierId: "vanilla",
+          name: "Nonfat Vanilla",
+          priceCents: 0,
+        },
+        {
           modifierListId: "size",
           modifierId: "med",
           name: "Medium",

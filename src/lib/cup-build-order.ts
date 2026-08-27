@@ -134,19 +134,88 @@ function namedKeyForOrder(order: AppOrder): string | null {
   return hit ?? null;
 }
 
-export function yogurtForOrder(order: AppOrder): YogurtPalette {
-  const named = namedKeyForOrder(order);
-  if (named) return NAMED_YOGURT[named];
+/** Named recipes start on vanilla or chocolate before toppings are smashed in. */
+const NAMED_BASE: Record<string, keyof typeof BASE_YOGURT> = {
+  salty_dog: "nonfat vanilla",
+  strawberry_shortcake: "nonfat vanilla",
+  thinner_mint: "nonfat chocolate",
+  peanut_butter_cup: "nonfat chocolate",
+  blueberry_dream: "nonfat vanilla",
+  lone_wolf: "nonfat chocolate",
+  mango_dream: "nonfat vanilla",
+};
 
+function resolveBasePalette(order: AppOrder): YogurtPalette {
   const line: CartLine | undefined = order.lineItems[0];
   const base = line?.modifiers.find(isBaseMod);
   if (base) {
     const key = mixinKey(base.name);
+    if (/chocolate/.test(key)) return BASE_YOGURT["nonfat chocolate"];
+    if (/half/.test(key)) return BASE_YOGURT.half;
+    if (/non-dairy|nondairy/.test(key)) return BASE_YOGURT["non-dairy"];
+    if (/banana/.test(key)) return BASE_YOGURT.banana;
     for (const [k, palette] of Object.entries(BASE_YOGURT)) {
       if (key.includes(k) || k.includes(key)) return palette;
     }
   }
+  const named = namedKeyForOrder(order);
+  if (named && NAMED_BASE[named]) return BASE_YOGURT[NAMED_BASE[named]];
+  if (line && /chocolate/i.test(line.itemName)) {
+    return BASE_YOGURT["nonfat chocolate"];
+  }
   return BASE_YOGURT["nonfat vanilla"];
+}
+
+/** Plain yogurt/chocolate before the smash — Loving Cup always starts here. */
+export function baseYogurtForOrder(order: AppOrder): YogurtPalette {
+  return resolveBasePalette(order);
+}
+
+/**
+ * Finished cup after toppings are crushed into the base.
+ * Named cups get their shop color; MYO tints the base with topping flecks.
+ */
+export function blendedYogurtForOrder(order: AppOrder): YogurtPalette {
+  const named = namedKeyForOrder(order);
+  if (named) return NAMED_YOGURT[named];
+
+  const base = resolveBasePalette(order);
+  const toppings = toppingsForOrder(order);
+  if (!toppings.length) return base;
+
+  const accent = toppings[0].colors[0];
+  const accentDeep = toppings[0].colors[1];
+  const fleck = toppings.find((t) => t.kind !== "sprinkle")?.colors[0];
+  return {
+    deep: mixHex(base.deep, accentDeep, 0.28),
+    mid: mixHex(base.mid, accent, 0.38),
+    light: mixHex(base.light, accent, 0.18),
+    fleck: fleck ?? accentDeep,
+  };
+}
+
+/** @deprecated Prefer baseYogurtForOrder + blendedYogurtForOrder */
+export function yogurtForOrder(order: AppOrder): YogurtPalette {
+  return blendedYogurtForOrder(order);
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const pa = parseHex(a);
+  const pb = parseHex(b);
+  const u = Math.min(1, Math.max(0, t));
+  const r = Math.round(pa[0] + (pb[0] - pa[0]) * u);
+  const g = Math.round(pa[1] + (pb[1] - pa[1]) * u);
+  const bl = Math.round(pa[2] + (pb[2] - pa[2]) * u);
+  return `#${[r, g, bl].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function parseHex(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
 }
 
 function toppingKind(name: string): ToppingKind {
@@ -250,13 +319,13 @@ export function expandToppingBits(
   return bits.slice(0, 14);
 }
 
-export type BuildPhase = "cup" | "pour" | "toppings" | "mix" | "reveal";
+export type BuildPhase = "cup" | "pour" | "toppings" | "blend" | "reveal";
 
 export function phaseAt(ms: number): BuildPhase {
-  if (ms < 550) return "cup";
-  if (ms < 1300) return "pour";
-  if (ms < 2200) return "toppings";
-  if (ms < 2650) return "mix";
+  if (ms < 450) return "cup";
+  if (ms < 1100) return "pour";
+  if (ms < 1700) return "toppings";
+  if (ms < 2550) return "blend";
   return "reveal";
 }
 

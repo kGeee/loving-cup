@@ -9,6 +9,7 @@ import type {
 import {
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -162,32 +163,6 @@ function getCookieMap() {
   return cookieCache;
 }
 
-function CreamMaterial({
-  color,
-  bumpScale = 0.22,
-}: {
-  color: string;
-  bumpScale?: number;
-}) {
-  const maps = useMemo(() => getCreamMaps(), []);
-  return (
-    <meshPhysicalMaterial
-      color={color}
-      map={maps.map}
-      bumpMap={maps.bumpMap}
-      bumpScale={bumpScale}
-      roughness={0.72}
-      metalness={0}
-      clearcoat={0.12}
-      clearcoatRoughness={0.65}
-      sheen={0.35}
-      sheenRoughness={0.85}
-      sheenColor="#fff6ea"
-      envMapIntensity={0.28}
-    />
-  );
-}
-
 /** One continuous soft-serve helix with star-nozzle cross-section (cached). */
 let softServeHelix: THREE.ExtrudeGeometry | null = null;
 function getSoftServeHelix() {
@@ -317,10 +292,13 @@ function PaperCupStatic({ logoTex }: { logoTex: THREE.Texture | null }) {
   );
 }
 
-/** Soft-serve — continuous ridged helix + cream maps (hero look). */
-function SoftServeStatic({ palette }: { palette: YogurtPalette }) {
+/** Soft yogurt mound — starts as plain soft-serve, settles smooth after blend. */
+function YogurtMound({
+  materialsRef,
+}: {
+  materialsRef: MutableRefObject<THREE.MeshPhysicalMaterial[]>;
+}) {
   const helix = useMemo(() => getSoftServeHelix(), []);
-  // Two accent rings near the base for density (hero cups are brim-full)
   const baseRings = useMemo(
     () => [
       { y: 0.88, rot: 0.2, geo: makeRidgedCoil(0.38, 0.1) },
@@ -328,68 +306,196 @@ function SoftServeStatic({ palette }: { palette: YogurtPalette }) {
     ],
     [],
   );
+  const maps = useMemo(() => getCreamMaps(), []);
+  const group = useRef<THREE.Group>(null);
 
-  const flecks = useMemo(() => {
-    if (!palette.fleck) return [];
-    return Array.from({ length: 24 }).map((_, i) => {
-      const a = (i / 24) * Math.PI * 2 + (i % 5) * 0.2;
-      const r = 0.12 + (i % 5) * 0.055;
-      return {
-        x: Math.cos(a) * r,
-        y: 0.95 + (i % 8) * 0.1,
-        z: Math.sin(a) * r,
-        s: 0.011 + (i % 3) * 0.005,
-      };
+  useLayoutEffect(() => {
+    materialsRef.current = [];
+    const root = group.current;
+    if (!root) return;
+    root.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material];
+      for (const m of mats) {
+        if (
+          m &&
+          (m as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial &&
+          !materialsRef.current.includes(m as THREE.MeshPhysicalMaterial)
+        ) {
+          materialsRef.current.push(m as THREE.MeshPhysicalMaterial);
+        }
+      }
     });
-  }, [palette.fleck]);
+  }, [materialsRef]);
 
   return (
-    <group>
-      <mesh position={[0, 0.72, 0]} castShadow receiveShadow>
+    <group ref={group}>
+      {/* Dense fill — becomes the smooth blended body after smash */}
+      <mesh position={[0, 0.78, 0]} castShadow receiveShadow>
         <sphereGeometry
-          args={[0.46, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.58]}
+          args={[0.48, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.62]}
         />
-        <CreamMaterial color={palette.mid} bumpScale={0.16} />
+        <meshPhysicalMaterial
+          color="#f5efe3"
+          map={maps.map}
+          bumpMap={maps.bumpMap}
+          bumpScale={0.14}
+          roughness={0.72}
+          metalness={0}
+          clearcoat={0.1}
+          clearcoatRoughness={0.7}
+          sheen={0.3}
+          sheenRoughness={0.85}
+          sheenColor="#fff6ea"
+        />
       </mesh>
-      {baseRings.map((c, i) => (
-        <mesh
-          key={i}
-          geometry={c.geo}
-          position={[0, c.y, 0]}
-          rotation={[0.12, c.rot, 0.04]}
-          castShadow
-          receiveShadow
-        >
-          <CreamMaterial
-            color={i % 2 === 0 ? palette.light : palette.mid}
+      {/* Ridged soft-serve — visible before blend, collapses as toppings smash in */}
+      <group>
+        {baseRings.map((c, i) => (
+          <mesh
+            key={i}
+            geometry={c.geo}
+            position={[0, c.y, 0]}
+            rotation={[0.12, c.rot, 0.04]}
+            castShadow
+            receiveShadow
+            userData={{ ridged: true }}
+          >
+            <meshPhysicalMaterial
+              color="#fffaf2"
+              map={maps.map}
+              bumpMap={maps.bumpMap}
+              bumpScale={0.18}
+              roughness={0.72}
+              metalness={0}
+              clearcoat={0.1}
+              clearcoatRoughness={0.65}
+              sheen={0.28}
+              sheenColor="#fff6ea"
+            />
+          </mesh>
+        ))}
+        <mesh geometry={helix} castShadow receiveShadow userData={{ ridged: true }}>
+          <meshPhysicalMaterial
+            color="#fffaf2"
+            map={maps.map}
+            bumpMap={maps.bumpMap}
             bumpScale={0.2}
+            roughness={0.7}
+            metalness={0}
+            clearcoat={0.12}
+            clearcoatRoughness={0.6}
+            sheen={0.3}
+            sheenColor="#fff6ea"
           />
         </mesh>
+        <mesh
+          position={[0.03, 1.78, 0.02]}
+          rotation={[0.35, 0.2, 0.5]}
+          castShadow
+          userData={{ ridged: true }}
+        >
+          <sphereGeometry args={[0.1, 14, 12]} />
+          <meshPhysicalMaterial
+            color="#fffaf2"
+            map={maps.map}
+            bumpMap={maps.bumpMap}
+            bumpScale={0.14}
+            roughness={0.72}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+/** Tiny flecks of crushed toppings inside the finished blend. */
+function BlendFlecks({
+  colors,
+  visibleRef,
+}: {
+  colors: string[];
+  visibleRef: MutableRefObject<number>;
+}) {
+  const group = useRef<THREE.Group>(null);
+  const flecks = useMemo(() => {
+    const palette = colors.length ? colors : ["#c4a07a"];
+    return Array.from({ length: 42 }).map((_, i) => {
+      const a = (i / 42) * Math.PI * 2 + (i % 7) * 0.15;
+      const r = 0.06 + (i % 6) * 0.04;
+      return {
+        x: Math.cos(a) * r,
+        // Keep flecks embedded in the smooth mound (not floating above)
+        y: 0.72 + (i % 8) * 0.055,
+        z: Math.sin(a) * r * 0.9,
+        s: 0.012 + (i % 4) * 0.005,
+        color: palette[i % palette.length],
+      };
+    });
+  }, [colors]);
+
+  useFrame(() => {
+    if (!group.current) return;
+    const v = visibleRef.current;
+    group.current.visible = v > 0.05;
+    group.current.scale.setScalar(0.2 + 0.8 * v);
+  });
+
+  return (
+    <group ref={group} visible={false}>
+      {flecks.map((f, i) => (
+        <mesh key={i} position={[f.x, f.y, f.z]}>
+          <sphereGeometry args={[f.s, 5, 5]} />
+          <meshStandardMaterial color={f.color} roughness={0.8} metalness={0} />
+        </mesh>
       ))}
-      <mesh geometry={helix} castShadow receiveShadow>
-        <CreamMaterial color={palette.light} bumpScale={0.24} />
+    </group>
+  );
+}
+
+/**
+ * Abstract smash auger — communicates the crush/blend without a full machine.
+ * Dark spiral descends and spins while toppings are smashed into the yogurt.
+ */
+function SmashAuger({ augerRef }: { augerRef: MutableRefObject<THREE.Group | null> }) {
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(0.02, -0.08);
+    shape.lineTo(0.09, -0.08);
+    shape.lineTo(0.09, 0.08);
+    shape.lineTo(0.02, 0.08);
+    shape.closePath();
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const t = i / 40;
+      const a = t * Math.PI * 2 * 3.5;
+      pts.push(
+        new THREE.Vector3(Math.cos(a) * 0.16, t * 0.85, Math.sin(a) * 0.16),
+      );
+    }
+    return new THREE.ExtrudeGeometry(shape, {
+      steps: 40,
+      bevelEnabled: false,
+      extrudePath: new THREE.CatmullRomCurve3(pts),
+    });
+  }, []);
+
+  return (
+    <group ref={augerRef} position={[0, 2.4, 0]} visible={false}>
+      <mesh geometry={geo} castShadow>
+        <meshStandardMaterial
+          color="#2a2a2a"
+          roughness={0.45}
+          metalness={0.35}
+        />
       </mesh>
-      {/* Soft tip peak */}
-      <mesh position={[0.03, 1.78, 0.02]} rotation={[0.35, 0.2, 0.5]} castShadow>
-        <sphereGeometry args={[0.1, 14, 12]} />
-        <CreamMaterial color={palette.light} bumpScale={0.16} />
+      <mesh position={[0, 0.92, 0]}>
+        <cylinderGeometry args={[0.04, 0.04, 0.25, 10]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.4} metalness={0.4} />
       </mesh>
-      <mesh position={[0.09, 1.88, 0.04]} rotation={[0.25, 0, 0.35]} castShadow>
-        <capsuleGeometry args={[0.034, 0.07, 4, 10]} />
-        <CreamMaterial color={palette.light} bumpScale={0.14} />
-      </mesh>
-      {palette.fleck
-        ? flecks.map((f, i) => (
-            <mesh key={i} position={[f.x, f.y, f.z]}>
-              <sphereGeometry args={[f.s, 5, 5]} />
-              <meshStandardMaterial
-                color={palette.fleck}
-                roughness={0.75}
-                metalness={0}
-              />
-            </mesh>
-          ))
-        : null}
     </group>
   );
 }
@@ -514,12 +620,14 @@ function ToppingMesh({
 
 function SceneContent({
   progressRef,
-  palette,
+  basePalette,
+  blendedPalette,
   bits,
   logoTex,
 }: {
   progressRef: MutableRefObject<number>;
-  palette: YogurtPalette;
+  basePalette: YogurtPalette;
+  blendedPalette: YogurtPalette;
   bits: Array<ToppingSpec & { bitKey: string; seed: number }>;
   logoTex: THREE.Texture | null;
 }) {
@@ -528,64 +636,165 @@ function SceneContent({
   const serve = useRef<THREE.Group>(null);
   const pour = useRef<THREE.Mesh>(null);
   const toppings = useRef<THREE.Group>(null);
+  const auger = useRef<THREE.Group | null>(null);
+  const yogurtMats = useRef<THREE.MeshPhysicalMaterial[]>([]);
+  const fleckVis = useRef(0);
   const cream = useMemo(() => getCreamMaps(), []);
+  const baseColor = useMemo(() => new THREE.Color(basePalette.mid), [basePalette.mid]);
+  const baseLight = useMemo(
+    () => new THREE.Color(basePalette.light),
+    [basePalette.light],
+  );
+  const blendColor = useMemo(
+    () => new THREE.Color(blendedPalette.mid),
+    [blendedPalette.mid],
+  );
+  const blendLight = useMemo(
+    () => new THREE.Color(blendedPalette.light),
+    [blendedPalette.light],
+  );
+  const fleckColors = useMemo(() => {
+    const cols = bits.map((b) => b.colors[0]);
+    if (blendedPalette.fleck) cols.push(blendedPalette.fleck);
+    return cols.slice(0, 6);
+  }, [bits, blendedPalette.fleck]);
+  const tmp = useMemo(() => new THREE.Color(), []);
 
-  // Drive motion from the ref inside useFrame — no React re-renders per tick.
-  useFrame((state) => {
+  // Timeline keyed to Loving Cup smash process:
+  // plain base pour → toppings land → auger smash/blend → smooth blended cup
+  useFrame((state, dt) => {
     const progress = progressRef.current;
-    const cupVis = easeOutCubic(clamp01(progress / 0.18));
+    const cupVis = easeOutCubic(clamp01(progress / 0.15));
     const pourActive =
-      progress > 0.16 && progress < 0.42
-        ? clamp01((progress - 0.16) / 0.12) *
-          (1 - clamp01((progress - 0.34) / 0.08))
+      progress > 0.14 && progress < 0.36
+        ? clamp01((progress - 0.14) / 0.1) *
+          (1 - clamp01((progress - 0.3) / 0.06))
         : 0;
-    const grow = easeOutCubic(clamp01((progress - 0.18) / 0.28));
-    const landBase = clamp01((progress - 0.38) / 0.32);
-    const mix = clamp01((progress - 0.7) / 0.2);
+    const grow = easeOutCubic(clamp01((progress - 0.15) / 0.22));
+    const landBase = clamp01((progress - 0.36) / 0.2);
+    const blend = easeInOut(clamp01((progress - 0.56) / 0.28));
+    const reveal = easeOutCubic(clamp01((progress - 0.84) / 0.16));
 
     if (cup.current) {
       const s = 0.88 + 0.12 * cupVis;
       cup.current.scale.setScalar(s);
       cup.current.position.y = -0.12 + (1 - cupVis) * 0.4;
     }
+
     if (serve.current) {
-      serve.current.scale.setScalar(Math.max(0.001, grow));
+      const mound = Math.max(0.001, grow);
+      // Slight compress during smash, then settle as a smooth regular scoop
+      const compress = 1 - blend * 0.12 + reveal * 0.06;
+      serve.current.scale.set(mound * (1 + blend * 0.04), mound * compress, mound * (1 + blend * 0.04));
       serve.current.position.y = (1 - grow) * -0.15;
-      serve.current.rotation.y += 0.0035 * grow;
+      serve.current.rotation.y += dt * (0.25 + blend * 8);
     }
+
+    // Collapse ridged soft-serve into a smooth mound as toppings smash in
+    if (serve.current) {
+      serve.current.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh && obj.userData.ridged) {
+          const mesh = obj as THREE.Mesh;
+          const hide = easeOutCubic(blend);
+          mesh.scale.setScalar(Math.max(0.001, 1 - hide * 0.92));
+          mesh.visible = hide < 0.97;
+        }
+      });
+    }
+
+    // Lerp yogurt color: plain vanilla/chocolate → blended finished cup
+    if (serve.current && yogurtMats.current.length === 0) {
+      serve.current.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        for (const m of mats) {
+          if (
+            m &&
+            (m as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial &&
+            !yogurtMats.current.includes(m as THREE.MeshPhysicalMaterial)
+          ) {
+            yogurtMats.current.push(m as THREE.MeshPhysicalMaterial);
+          }
+        }
+      });
+    }
+    const colorT = clamp01(blend * 1.15);
+    yogurtMats.current.forEach((mat, i) => {
+      const from = i % 2 === 0 ? baseLight : baseColor;
+      const to = i % 2 === 0 ? blendLight : blendColor;
+      tmp.copy(from).lerp(to, colorT);
+      mat.color.copy(tmp);
+      mat.bumpScale = 0.18 - colorT * 0.06;
+      mat.roughness = 0.7 + colorT * 0.08;
+    });
+
     if (pour.current) {
       const a = clamp01(pourActive);
       pour.current.visible = a > 0.02;
       pour.current.scale.set(1, Math.max(0.001, a * 1.35), 1);
       pour.current.position.y = 2.35 - a * 0.5;
       const mat = pour.current.material as THREE.MeshStandardMaterial;
+      mat.color.copy(baseColor);
       mat.opacity = a * 0.88;
     }
+
+    // Abstract smash auger
+    if (auger.current) {
+      const smashOn = blend > 0.02 && blend < 0.92;
+      auger.current.visible = smashOn;
+      if (smashOn) {
+        const plunge = easeOutCubic(clamp01(blend / 0.35));
+        const retract = easeInOut(clamp01((blend - 0.7) / 0.22));
+        auger.current.position.y = 2.35 - plunge * 1.05 + retract * 1.2;
+        auger.current.rotation.y += dt * (14 + blend * 6);
+      }
+    }
+
     if (swirl.current) {
       swirl.current.rotation.y =
-        mix * -0.85 + Math.sin(state.clock.elapsedTime * 0.7) * 0.02;
+        blend * -1.1 + Math.sin(state.clock.elapsedTime * 0.7) * 0.02 * (1 - blend);
     }
+
+    // Toppings land, then get sucked/smashed into the yogurt during blend
     if (toppings.current) {
+      // Hide the whole layer once smash is mostly done
+      toppings.current.visible = landBase > 0.02 && blend < 0.85;
       const total = Math.max(bits.length, 1);
       toppings.current.children.forEach((child, i) => {
         const bitSeed = bits[i]?.seed ?? i;
         const stagger = i / total;
-        const land = easeOutCubic(
-          clamp01((landBase - stagger * 0.35) / 0.65),
-        );
-        const a = (i / total) * Math.PI * 2 + bitSeed * 0.35;
-        const r = 0.16 + (bitSeed % 4) * 0.065;
+        const land = easeOutCubic(clamp01((landBase - stagger * 0.4) / 0.6));
+        const crush = easeInOut(clamp01((blend - stagger * 0.08) / 0.4));
+        const a =
+          (i / total) * Math.PI * 2 +
+          bitSeed * 0.35 +
+          crush * (2.8 + (i % 3) * 0.4);
+        const r = (0.16 + (bitSeed % 4) * 0.065) * (1 - crush * 0.9);
         const nestX = Math.cos(a) * r;
-        const nestY = 1.32 + (bitSeed % 3) * 0.09;
+        const nestY =
+          1.32 +
+          (bitSeed % 3) * 0.09 -
+          crush * (0.45 + (bitSeed % 3) * 0.08);
         const nestZ = Math.sin(a) * r * 0.85;
         const startY = 2.55 + (bitSeed % 5) * 0.07;
-        const rot = bitSeed * 0.65;
-        child.visible = land > 0.02;
-        child.position.set(nestX, startY + (nestY - startY) * land, nestZ);
-        child.rotation.set(rot * land, rot * 1.3 * land, rot * 0.5 * land);
-        child.scale.setScalar(0.35 + 0.65 * land);
+        const rot = bitSeed * 0.65 + crush * 5;
+        const visible = land > 0.02 && crush < 0.88;
+        child.visible = visible;
+        child.position.set(
+          nestX,
+          startY + (nestY - startY) * land,
+          nestZ,
+        );
+        child.rotation.set(rot * land, rot * 1.3, rot * 0.5);
+        // Shrink as crushed into the yogurt
+        child.scale.setScalar(Math.max(0.001, (0.35 + 0.65 * land) * (1 - crush)));
       });
     }
+
+    fleckVis.current = easeOutCubic(clamp01((blend - 0.25) / 0.55));
   });
 
   return (
@@ -616,7 +825,7 @@ function SceneContent({
         <mesh ref={pour} position={[0, 2.15, 0]} visible={false}>
           <cylinderGeometry args={[0.038, 0.052, 1.05, 12]} />
           <meshStandardMaterial
-            color={palette.mid}
+            color={basePalette.mid}
             map={cream.map}
             bumpMap={cream.bumpMap}
             bumpScale={0.03}
@@ -626,9 +835,11 @@ function SceneContent({
             metalness={0}
           />
         </mesh>
+        <SmashAuger augerRef={auger} />
         <group ref={swirl}>
           <group ref={serve} scale={0.001}>
-            <SoftServeStatic palette={palette} />
+            <YogurtMound materialsRef={yogurtMats} />
+            <BlendFlecks colors={fleckColors} visibleRef={fleckVis} />
           </group>
           <group ref={toppings}>
             {bits.map((b) => (
@@ -697,22 +908,24 @@ function useLogoTexture() {
 function CameraRig({ progressRef }: { progressRef: MutableRefObject<number> }) {
   useFrame((state) => {
     const p = easeInOut(clamp01(progressRef.current));
-    const z = 3.35 - p * 0.4;
-    const y = 1.4 - p * 0.1;
-    state.camera.position.lerp(new THREE.Vector3(1.35, y, z), 0.07);
-    state.camera.lookAt(0, 0.2, 0);
+    const z = 3.35 - p * 0.35;
+    const y = 1.45 - p * 0.08;
+    state.camera.position.lerp(new THREE.Vector3(1.25, y, z), 0.07);
+    state.camera.lookAt(0, 0.25, 0);
   });
   return null;
 }
 
 export function CupBuildScene({
   progressRef,
-  palette,
+  basePalette,
+  blendedPalette,
   bits,
   onReady,
 }: {
   progressRef: MutableRefObject<number>;
-  palette: YogurtPalette;
+  basePalette: YogurtPalette;
+  blendedPalette: YogurtPalette;
   bits: Array<ToppingSpec & { bitKey: string; seed: number }>;
   onReady?: () => void;
 }) {
@@ -725,7 +938,7 @@ export function CupBuildScene({
     <Canvas
       shadows
       dpr={[1, 1.5]}
-      camera={{ position: [1.35, 1.4, 3.35], fov: 30, near: 0.1, far: 40 }}
+      camera={{ position: [1.25, 1.45, 3.35], fov: 30, near: 0.1, far: 40 }}
       gl={{
         antialias: true,
         alpha: false,
@@ -744,7 +957,8 @@ export function CupBuildScene({
       <Suspense fallback={null}>
         <SceneContent
           progressRef={progressRef}
-          palette={palette}
+          basePalette={basePalette}
+          blendedPalette={blendedPalette}
           bits={bits}
           logoTex={logoTex}
         />
