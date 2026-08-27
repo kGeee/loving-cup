@@ -286,7 +286,6 @@ export function CupBuildAnimation({
   const [phase, setPhase] = useState<BuildPhase>(skipMotion ? "reveal" : "cup");
   const finishedRef = useRef(onFinished);
   finishedRef.current = onFinished;
-  const startedRef = useRef(false);
 
   useEffect(() => {
     if (skipMotion) {
@@ -294,11 +293,11 @@ export function CupBuildAnimation({
       finishedRef.current();
       return;
     }
-    if (startedRef.current) return;
-    startedRef.current = true;
+    let cancelled = false;
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
+      if (cancelled) return;
       const elapsed = now - start;
       setPhase(phaseAt(elapsed));
       if (elapsed >= CUP_BUILD_MS) {
@@ -308,7 +307,10 @@ export function CupBuildAnimation({
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
   }, [skipMotion]);
 
   return (
