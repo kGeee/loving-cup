@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - cursor/loving-cup-v1-nopa-53e1
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: typecheck · lint · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Demo path only — never inject Square secrets in CI.
+      # ADMIN_PASSWORD intentionally unset (admin fail-closed).
+      CI: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (demo path, no SQUARE_*)
+        run: |
+          unset SQUARE_APPLICATION_ID SQUARE_ACCESS_TOKEN SQUARE_LOCATION_ID SQUARE_WEBHOOK_SIGNATURE_KEY SQUARE_ENVIRONMENT SQUARE_WEBHOOK_NOTIFICATION_URL NEXT_PUBLIC_SQUARE_APPLICATION_ID ADMIN_PASSWORD || true
+          npm run build
