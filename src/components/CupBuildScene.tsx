@@ -697,7 +697,7 @@ function SceneContent({
       const compress = 1 - blend * 0.12 + reveal * 0.06;
       serve.current.scale.set(mound * (1 + blend * 0.04), mound * compress, mound * (1 + blend * 0.04));
       serve.current.position.y = (1 - grow) * -0.15;
-      serve.current.rotation.y += dt * (0.25 + blend * 8);
+      serve.current.rotation.y += dt * (0.18 + blend * 5.5);
     }
 
     // Collapse ridged soft-serve into a smooth mound as toppings smash in
@@ -732,13 +732,12 @@ function SceneContent({
       });
     }
     const colorT = clamp01(blend * 1.15);
-    yogurtMats.current.forEach((mat, i) => {
-      const from = i % 2 === 0 ? baseLight : baseColor;
-      const to = i % 2 === 0 ? blendLight : blendColor;
-      tmp.copy(from).lerp(to, colorT);
+    // Uniform blend color — avoid half/half banding from mat index parity
+    yogurtMats.current.forEach((mat) => {
+      tmp.copy(baseColor).lerp(blendColor, colorT);
       mat.color.copy(tmp);
-      mat.bumpScale = 0.18 - colorT * 0.06;
-      mat.roughness = 0.7 + colorT * 0.08;
+      mat.bumpScale = 0.16 - colorT * 0.04;
+      mat.roughness = 0.72 + colorT * 0.06;
     });
 
     if (pour.current) {
@@ -759,7 +758,7 @@ function SceneContent({
         const plunge = easeOutCubic(clamp01(blend / 0.35));
         const retract = easeInOut(clamp01((blend - 0.7) / 0.22));
         auger.current.position.y = 2.35 - plunge * 1.05 + retract * 1.2;
-        auger.current.rotation.y += dt * (14 + blend * 6);
+        auger.current.rotation.y += dt * (10 + blend * 4);
       }
     }
 

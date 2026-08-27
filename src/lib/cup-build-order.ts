@@ -1,6 +1,6 @@
 import type { AppOrder, CartLine, CartModifierSelection } from "@/types/menu";
 
-export const CUP_BUILD_MS = 3000;
+export const CUP_BUILD_MS = 4500;
 
 export type YogurtPalette = {
   deep: string;
@@ -322,10 +322,10 @@ export function expandToppingBits(
 export type BuildPhase = "cup" | "pour" | "toppings" | "blend" | "reveal";
 
 export function phaseAt(ms: number): BuildPhase {
-  if (ms < 450) return "cup";
-  if (ms < 1100) return "pour";
-  if (ms < 1700) return "toppings";
-  if (ms < 2550) return "blend";
+  if (ms < 600) return "cup";
+  if (ms < 1500) return "pour";
+  if (ms < 2400) return "toppings";
+  if (ms < 3900) return "blend";
   return "reveal";
 }
 
