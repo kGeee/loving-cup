@@ -456,32 +456,38 @@ function BlendFlecks({
   );
 }
 
-/**
- * Abstract smash auger — communicates the crush/blend without a full machine.
- * Dark spiral descends and spins while toppings are smashed into the yogurt.
- */
-function SmashAuger({ augerRef }: { augerRef: MutableRefObject<THREE.Group | null> }) {
-  const geo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0.02, -0.08);
-    shape.lineTo(0.09, -0.08);
-    shape.lineTo(0.09, 0.08);
-    shape.lineTo(0.02, 0.08);
-    shape.closePath();
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 40; i++) {
-      const t = i / 40;
-      const a = t * Math.PI * 2 * 3.5;
-      pts.push(
-        new THREE.Vector3(Math.cos(a) * 0.16, t * 0.85, Math.sin(a) * 0.16),
-      );
-    }
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 40,
-      bevelEnabled: false,
-      extrudePath: new THREE.CatmullRomCurve3(pts),
-    });
-  }, []);
+/** Abstract smash auger — communicates the crush/blend without a full machine. */
+let smashAugerGeo: THREE.ExtrudeGeometry | null = null;
+function getSmashAugerGeo() {
+  if (smashAugerGeo) return smashAugerGeo;
+  const shape = new THREE.Shape();
+  shape.moveTo(0.02, -0.08);
+  shape.lineTo(0.09, -0.08);
+  shape.lineTo(0.09, 0.08);
+  shape.lineTo(0.02, 0.08);
+  shape.closePath();
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 40; i++) {
+    const t = i / 40;
+    const a = t * Math.PI * 2 * 3.5;
+    pts.push(
+      new THREE.Vector3(Math.cos(a) * 0.16, t * 0.85, Math.sin(a) * 0.16),
+    );
+  }
+  smashAugerGeo = new THREE.ExtrudeGeometry(shape, {
+    steps: 40,
+    bevelEnabled: false,
+    extrudePath: new THREE.CatmullRomCurve3(pts),
+  });
+  return smashAugerGeo;
+}
+
+function SmashAuger({
+  augerRef,
+}: {
+  augerRef: MutableRefObject<THREE.Group | null>;
+}) {
+  const geo = useMemo(() => getSmashAugerGeo(), []);
 
   return (
     <group ref={augerRef} position={[0, 2.4, 0]} visible={false} scale={1.15}>
@@ -496,7 +502,6 @@ function SmashAuger({ augerRef }: { augerRef: MutableRefObject<THREE.Group | nul
         <cylinderGeometry args={[0.045, 0.045, 0.28, 10]} />
         <meshStandardMaterial color="#111111" roughness={0.35} metalness={0.5} />
       </mesh>
-      {/* Motion blur hint ring while spinning */}
       <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.4, 0]}>
         <torusGeometry args={[0.22, 0.012, 6, 24]} />
         <meshBasicMaterial color="#2a2a2a" transparent opacity={0.35} />
