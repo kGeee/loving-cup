@@ -46,6 +46,7 @@ const MIXIN_STILL_PREF: Record<string, { src: (typeof BOARD_STILLS)[number]; pos
     pos: "62% 68%",
   },
   "oreo cookie": { src: "/cup-thinner-mint.webp", pos: "40% 50%" },
+  oreos: { src: "/cup-thinner-mint.webp", pos: "40% 50%" },
   "jr mints": { src: "/cup-thinner-mint.webp", pos: "70% 38%" },
   "peanut butter": { src: "/cup-peanut-butter-cup.webp", pos: "50% 45%" },
   "chocolate chips": { src: "/cup-peanut-butter-cup.webp", pos: "35% 65%" },
