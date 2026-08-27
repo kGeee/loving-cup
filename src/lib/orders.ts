@@ -40,8 +40,18 @@ export async function createPickupOrder(input: {
   rewardTierId?: string;
   loyaltyAccountId?: string;
 }): Promise<AppOrder> {
-  if (input.lineItems.some((l) => /akid/i.test(l.itemId) || /akid/i.test(l.itemName))) {
-    throw new Error("Item akid is sold out and cannot be ordered.");
+  // akid is a sold-out size modifier — block if present on any line.
+  if (
+    input.lineItems.some(
+      (l) =>
+        /\bakid\b/i.test(l.itemId) ||
+        /\bakid\b/i.test(l.itemName) ||
+        l.modifiers.some(
+          (m) => /\bakid\b/i.test(m.modifierId) || /\bakid\b/i.test(m.name),
+        ),
+    )
+  ) {
+    throw new Error("Size akid is sold out and cannot be ordered.");
   }
 
   if (getAppMode() === "demo") {
@@ -51,6 +61,14 @@ export async function createPickupOrder(input: {
       const item = demo.items.find((i) => i.id === line.itemId);
       if (item?.soldOut) {
         throw new Error(`${item.name} is sold out and cannot be ordered.`);
+      }
+      for (const m of line.modifiers) {
+        const hit = item?.modifierLists
+          .flatMap((l) => l.modifiers)
+          .find((x) => x.id === m.modifierId);
+        if (hit?.soldOut) {
+          throw new Error(`${hit.name} is sold out and cannot be ordered.`);
+        }
       }
     }
     return createDemoOrder({

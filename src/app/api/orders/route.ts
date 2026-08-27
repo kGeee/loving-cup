@@ -1,3 +1,4 @@
+import { requireAdminApi } from "@/lib/admin-auth";
 import {
   createPickupOrder,
   listOpenPickupOrders,
@@ -7,7 +8,11 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+/** Open pickup board — admin only. */
+export async function GET(req: Request) {
+  const denied = requireAdminApi(req);
+  if (denied) return denied;
+
   try {
     const orders = await listOpenPickupOrders();
     return NextResponse.json({ orders });
@@ -19,6 +24,7 @@ export async function GET() {
   }
 }
 
+/** Create pickup order — public (demo cart / fake-pay + live CreateOrder). */
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
@@ -41,15 +47,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
     }
 
-    // Hard block akid
+    // Hard block sold-out size modifier `akid` (not a menu item).
     for (const line of body.lineItems) {
-      if (
+      const akidHit =
         /\bakid\b/i.test(line.itemId) ||
         /\bakid\b/i.test(line.itemName) ||
-        /\bakid\b/i.test(line.variationId)
-      ) {
+        /\bakid\b/i.test(line.variationId) ||
+        line.modifiers?.some(
+          (m) => /\bakid\b/i.test(m.modifierId) || /\bakid\b/i.test(m.name),
+        );
+      if (akidHit) {
         return NextResponse.json(
-          { error: "akid is sold out and cannot be ordered." },
+          { error: "Size akid is sold out and cannot be ordered." },
           { status: 400 },
         );
       }

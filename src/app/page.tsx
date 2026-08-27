@@ -38,8 +38,8 @@ export default async function HomePage() {
             <a className="btn btn--on-dark" href="#menu">
               Order ahead
             </a>
-            <Link className="btn btn--outline-light" href="/admin">
-              Admin board
+            <Link className="btn btn--outline-light" href="/cart">
+              Cart
             </Link>
           </div>
         </div>

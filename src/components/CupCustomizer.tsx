@@ -10,15 +10,16 @@ function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[
   const init: Record<string, string[]> = {};
   for (const list of lists) {
     if (list.role === "size") {
-      const kid =
-        list.modifiers.find((m) => /^kid$/i.test(m.name)) ??
-        list.modifiers.find((m) => m.price.amount === 0) ??
-        list.modifiers[0];
-      init[list.id] = kid ? [kid.id] : [];
+      const firstOrderable =
+        list.modifiers.find((m) => !m.soldOut) ?? list.modifiers[0];
+      init[list.id] = firstOrderable && !firstOrderable.soldOut
+        ? [firstOrderable.id]
+        : [];
       continue;
     }
     if (list.selectionType === "SINGLE" && list.minSelected > 0) {
-      init[list.id] = list.modifiers[0] ? [list.modifiers[0].id] : [];
+      const first = list.modifiers.find((m) => !m.soldOut);
+      init[list.id] = first ? [first.id] : [];
     } else {
       init[list.id] = [];
     }
@@ -56,6 +57,8 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
     : 0;
 
   function toggle(listId: string, modId: string, list: MenuModifierList) {
+    const mod = list.modifiers.find((m) => m.id === modId);
+    if (mod?.soldOut) return;
     setSelections((prev) => {
       const current = prev[listId] ?? [];
       if (list.selectionType === "SINGLE") {
@@ -86,6 +89,13 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
         if (selected.length < list.minSelected) {
           setError(`Choose ${list.minSelected} from ${list.name}.`);
           return;
+        }
+        for (const id of selected) {
+          const mod = list.modifiers.find((m) => m.id === id);
+          if (mod?.soldOut) {
+            setError(`${mod.name} is sold out and cannot be ordered.`);
+            return;
+          }
         }
       }
       const line = buildCartLine({
@@ -123,6 +133,7 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
         <fieldset key={list.id} className="sheet">
           <legend>
             {list.name}
+            {list.role === "size" ? " · required" : null}
             {list.includedCount
               ? ` · ${list.includedCount} included`
               : null}
@@ -131,18 +142,20 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
             {list.modifiers.map((m) => {
               const on = (selections[list.id] ?? []).includes(m.id);
               const showPrice =
-                list.role === "size"
-                  ? true
-                  : m.price.amount > 0;
+                list.role === "size" ? !m.soldOut : m.price.amount > 0;
               return (
                 <button
                   key={m.id}
                   type="button"
-                  className={`chip ${on ? "chip--on" : ""}`}
+                  disabled={m.soldOut}
+                  aria-disabled={m.soldOut || undefined}
+                  className={`chip ${on ? "chip--on" : ""} ${m.soldOut ? "chip--soldout" : ""}`}
                   onClick={() => toggle(list.id, m.id, list)}
                 >
                   {m.name}
-                  {showPrice ? (
+                  {m.soldOut ? (
+                    <span>Sold out</span>
+                  ) : showPrice ? (
                     <span>
                       {m.price.amount === 0
                         ? formatUsd(0)

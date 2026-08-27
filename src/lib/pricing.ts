@@ -23,6 +23,17 @@ export function buildCartLine(opts: {
   const variation = opts.item.variations.find((v) => v.id === opts.variationId);
   if (!variation) throw new Error("Invalid catalog variation.");
 
+  for (const list of opts.item.modifierLists) {
+    for (const id of opts.selections[list.id] ?? []) {
+      const mod = list.modifiers.find((m) => m.id === id);
+      if (mod?.soldOut || /\bakid\b/i.test(mod?.name ?? "")) {
+        throw new Error(
+          `${mod?.name ?? "akid"} is sold out and cannot be ordered.`,
+        );
+      }
+    }
+  }
+
   const modifiers = opts.item.modifierLists.flatMap((list) => {
     const selected = opts.selections[list.id] ?? [];
     return pricedFromList(list, selected).map((p) => ({

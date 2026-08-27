@@ -1,5 +1,6 @@
 import {
-  isAkidSoldOut,
+  isAkidSizeModifier,
+  isDeniedCategory,
   isPresentAtLocation,
   isSharedCatalogBleed,
   looksLikeFroyoCategory,
@@ -48,12 +49,16 @@ function mapModifierList(
   if (!data) return null;
   const modifiers: MenuModifier[] = (data.modifiers ?? [])
     .filter((m): m is Square.CatalogObject.Modifier => m.type === "MODIFIER")
-    .map((m, i) => ({
-      id: m.id!,
-      name: m.modifierData?.name ?? "Modifier",
-      price: serializeMoney(m.modifierData?.priceMoney?.amount),
-      ordinal: m.modifierData?.ordinal ?? i,
-    }))
+    .map((m, i) => {
+      const name = m.modifierData?.name ?? "Modifier";
+      return {
+        id: m.id!,
+        name,
+        price: serializeMoney(m.modifierData?.priceMoney?.amount),
+        ordinal: m.modifierData?.ordinal ?? i,
+        soldOut: isAkidSizeModifier(name),
+      };
+    })
     .sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
 
   const selectionType =
@@ -111,6 +116,12 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
       .map(([id]) => id),
   );
 
+  const deniedCategoryIds = new Set(
+    [...categoryNameById.entries()]
+      .filter(([, name]) => isDeniedCategory(name))
+      .map(([id]) => id),
+  );
+
   const modifierListsById = new Map<string, MenuModifierList>();
   for (const o of objects) {
     if (o.type !== "MODIFIER_LIST") continue;
@@ -138,9 +149,12 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
       ...(data.categories?.map((c) => c.id!).filter(Boolean) ?? []),
       ...(data.categoryId ? [data.categoryId] : []),
     ];
+    if (catIds.some((id) => deniedCategoryIds.has(id))) continue;
+
     const catNames = catIds
       .map((id) => categoryNameById.get(id))
       .filter((n): n is string => Boolean(n));
+    if (catNames.some(isDeniedCategory)) continue;
 
     const inFroyoCat = catIds.some((id) => froyoCategoryIds.has(id));
     if (!inFroyoCat && !looksLikeFroyoItem(data.name, catNames)) continue;
@@ -186,13 +200,6 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
       })
       .filter((l): l is MenuModifierList => Boolean(l));
 
-    const soldOut = isAkidSoldOut({
-      name: data.name,
-      abbreviation: data.abbreviation,
-      sku: variations.map((v) => v.sku).join(" "),
-      variationNames: variations.map((v) => v.name),
-    });
-
     const imageId = data.imageIds?.[0];
     items.push(
       normalizeMenuItem({
@@ -203,14 +210,14 @@ export async function fetchCatalog(): Promise<CatalogPayload> {
         categoryNames: catNames,
         variations,
         modifierLists,
-        soldOut,
+        soldOut: false,
         imageUrl: imageId ? imageUrlById.get(imageId) : undefined,
       }),
     );
   }
 
   const categories: MenuCategory[] = [...categoryNameById.entries()]
-    .filter(([id]) => froyoCategoryIds.has(id))
+    .filter(([id, name]) => froyoCategoryIds.has(id) && !isDeniedCategory(name))
     .map(([id, name], i) => ({ id, name, ordinal: i }));
 
   return {

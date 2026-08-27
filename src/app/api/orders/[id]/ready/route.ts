@@ -1,12 +1,16 @@
+import { requireAdminApi } from "@/lib/admin-auth";
 import { markOrderReady } from "@/lib/orders";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
+  const denied = requireAdminApi(req);
+  if (denied) return denied;
+
   const { id } = await ctx.params;
   try {
     const order = await markOrderReady(id);

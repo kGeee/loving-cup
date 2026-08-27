@@ -45,9 +45,21 @@ export function AdminOrders() {
     <div className="admin">
       <div className="admin__head">
         <h1>Pickup board</h1>
-        <button type="button" className="btn btn--ghost" onClick={() => void load()}>
-          Refresh
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button type="button" className="btn btn--ghost" onClick={() => void load()}>
+            Refresh
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={async () => {
+              await fetch("/api/admin/logout", { method: "POST" });
+              window.location.href = "/admin";
+            }}
+          >
+            Log out
+          </button>
+        </div>
       </div>
       {error ? <p className="form-error">{error}</p> : null}
       {orders.length === 0 ? (

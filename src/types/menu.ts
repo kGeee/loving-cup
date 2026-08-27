@@ -14,6 +14,8 @@ export interface MenuModifier {
   name: string;
   price: MenuMoney;
   ordinal?: number;
+  /** e.g. size `akid` — sold out, cannot select / order. */
+  soldOut?: boolean;
 }
 
 export interface MenuModifierList {
@@ -45,7 +47,7 @@ export interface MenuItem {
   /** Catalog variation(s) — cup base price lives here ($4.99), not JPEG size totals. */
   variations: MenuVariation[];
   modifierLists: MenuModifierList[];
-  /** Catalog object name/SKU `akid` — sold out, cannot order. */
+  /** Item-level sold out (rare). Prefer modifier.soldOut for size `akid`. */
   soldOut: boolean;
   imageUrl?: string;
 }

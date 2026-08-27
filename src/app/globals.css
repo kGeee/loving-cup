@@ -427,6 +427,14 @@ code {
   color: var(--mint-bright);
 }
 
+.chip--soldout,
+.chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  transform: none;
+}
+
 .customizer__footer {
   display: flex;
   align-items: center;
