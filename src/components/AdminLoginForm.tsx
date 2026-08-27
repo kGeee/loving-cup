@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function AdminLoginForm() {
+const UNCONFIGURED_COPY =
+  "Admin isn't configured on this deploy. Set `ADMIN_PASSWORD` on Vercel, then reload.";
+
+export function AdminLoginForm({ configured }: { configured: boolean }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -11,6 +14,7 @@ export function AdminLoginForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!configured) return;
     setBusy(true);
     setError(null);
     try {
@@ -22,8 +26,8 @@ export function AdminLoginForm() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(
-          res.status === 404
-            ? "Admin is not configured."
+          res.status === 503
+            ? ((data.error as string) || UNCONFIGURED_COPY)
             : (data.error as string) || "Login failed",
         );
         return;
@@ -34,6 +38,15 @@ export function AdminLoginForm() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!configured) {
+    return (
+      <div className="checkout-panel">
+        <h1 style={{ fontFamily: "var(--font-display)", margin: 0 }}>Admin</h1>
+        <p className="lede">{UNCONFIGURED_COPY}</p>
+      </div>
+    );
   }
 
   return (

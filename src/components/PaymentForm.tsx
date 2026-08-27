@@ -136,7 +136,7 @@ export function PaymentForm({
           <code>{paidOrder.id}</code>
         </p>
         <Link className="btn btn--primary" href="/admin">
-          View in admin
+          Kitchen
         </Link>
       </div>
     );

@@ -71,7 +71,7 @@ export async function createPickupOrder(input: {
         }
       }
     }
-    return createDemoOrder({
+    return await createDemoOrder({
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       pickupNote: input.pickupNote,
@@ -145,7 +145,7 @@ export async function payOrder(input: {
     if (input.sourceId !== "demo-fake-nonce" && !input.sourceId.startsWith("demo")) {
       // Still accept any demo token for POC.
     }
-    return markDemoPaid(input.orderId, `demo_pay_${randomUUID()}`);
+    return await markDemoPaid(input.orderId, `demo_pay_${randomUUID()}`);
   }
 
   const client = getSquareClient();
@@ -173,7 +173,7 @@ export async function payOrder(input: {
 
 export async function listOpenPickupOrders(): Promise<AppOrder[]> {
   if (getAppMode() === "demo") {
-    return listDemoOrders(["OPEN", "PAID"]);
+    return await listDemoOrders(["OPEN", "PAID"]);
   }
 
   const client = getSquareClient();
@@ -199,7 +199,7 @@ export async function listOpenPickupOrders(): Promise<AppOrder[]> {
 
 export async function markOrderReady(orderId: string): Promise<AppOrder> {
   if (getAppMode() === "demo") {
-    return markDemoReady(orderId);
+    return await markDemoReady(orderId);
   }
 
   const client = getSquareClient();
@@ -231,7 +231,7 @@ export async function markOrderReady(orderId: string): Promise<AppOrder> {
 
 export async function getOrder(orderId: string): Promise<AppOrder | null> {
   if (getAppMode() === "demo") {
-    return getDemoOrder(orderId) ?? null;
+    return (await getDemoOrder(orderId)) ?? null;
   }
   const client = getSquareClient();
   const res = await client.orders.get({ orderId });

@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 15
     env:
       # Demo path only — never inject Square secrets in CI.
-      # ADMIN_PASSWORD intentionally unset (admin fail-closed).
+      # ADMIN_PASSWORD intentionally unset (/admin shows unconfigured copy; APIs 503).
       CI: true
     steps:
       - name: Checkout
