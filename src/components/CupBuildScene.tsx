@@ -295,8 +295,10 @@ function PaperCupStatic({ logoTex }: { logoTex: THREE.Texture | null }) {
 /** Soft yogurt mound — starts as plain soft-serve, settles smooth after blend. */
 function YogurtMound({
   materialsRef,
+  basePalette,
 }: {
   materialsRef: MutableRefObject<THREE.MeshPhysicalMaterial[]>;
+  basePalette: YogurtPalette;
 }) {
   const helix = useMemo(() => getSoftServeHelix(), []);
   const baseRings = useMemo(
@@ -333,13 +335,12 @@ function YogurtMound({
 
   return (
     <group ref={group}>
-      {/* Dense fill — becomes the smooth blended body after smash */}
       <mesh position={[0, 0.78, 0]} castShadow receiveShadow>
         <sphereGeometry
           args={[0.48, 32, 24, 0, Math.PI * 2, 0, Math.PI * 0.62]}
         />
         <meshPhysicalMaterial
-          color="#f5efe3"
+          color={basePalette.mid}
           map={maps.map}
           bumpMap={maps.bumpMap}
           bumpScale={0.14}
@@ -352,7 +353,6 @@ function YogurtMound({
           sheenColor="#fff6ea"
         />
       </mesh>
-      {/* Ridged soft-serve — visible before blend, collapses as toppings smash in */}
       <group>
         {baseRings.map((c, i) => (
           <mesh
@@ -365,7 +365,7 @@ function YogurtMound({
             userData={{ ridged: true }}
           >
             <meshPhysicalMaterial
-              color="#fffaf2"
+              color={basePalette.light}
               map={maps.map}
               bumpMap={maps.bumpMap}
               bumpScale={0.18}
@@ -380,7 +380,7 @@ function YogurtMound({
         ))}
         <mesh geometry={helix} castShadow receiveShadow userData={{ ridged: true }}>
           <meshPhysicalMaterial
-            color="#fffaf2"
+            color={basePalette.light}
             map={maps.map}
             bumpMap={maps.bumpMap}
             bumpScale={0.2}
@@ -400,7 +400,7 @@ function YogurtMound({
         >
           <sphereGeometry args={[0.1, 14, 12]} />
           <meshPhysicalMaterial
-            color="#fffaf2"
+            color={basePalette.light}
             map={maps.map}
             bumpMap={maps.bumpMap}
             bumpScale={0.14}
@@ -431,7 +431,7 @@ function BlendFlecks({
         // Keep flecks embedded in the smooth mound (not floating above)
         y: 0.72 + (i % 8) * 0.055,
         z: Math.sin(a) * r * 0.9,
-        s: 0.012 + (i % 4) * 0.005,
+        s: 0.007 + (i % 4) * 0.003,
         color: palette[i % palette.length],
       };
     });
@@ -484,17 +484,22 @@ function SmashAuger({ augerRef }: { augerRef: MutableRefObject<THREE.Group | nul
   }, []);
 
   return (
-    <group ref={augerRef} position={[0, 2.4, 0]} visible={false}>
+    <group ref={augerRef} position={[0, 2.4, 0]} visible={false} scale={1.15}>
       <mesh geometry={geo} castShadow>
         <meshStandardMaterial
-          color="#2a2a2a"
-          roughness={0.45}
-          metalness={0.35}
+          color="#1c1c1c"
+          roughness={0.4}
+          metalness={0.45}
         />
       </mesh>
       <mesh position={[0, 0.92, 0]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.25, 10]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.4} metalness={0.4} />
+        <cylinderGeometry args={[0.045, 0.045, 0.28, 10]} />
+        <meshStandardMaterial color="#111111" roughness={0.35} metalness={0.5} />
+      </mesh>
+      {/* Motion blur hint ring while spinning */}
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.4, 0]}>
+        <torusGeometry args={[0.22, 0.012, 6, 24]} />
+        <meshBasicMaterial color="#2a2a2a" transparent opacity={0.35} />
       </mesh>
     </group>
   );
@@ -838,7 +843,7 @@ function SceneContent({
         <SmashAuger augerRef={auger} />
         <group ref={swirl}>
           <group ref={serve} scale={0.001}>
-            <YogurtMound materialsRef={yogurtMats} />
+            <YogurtMound materialsRef={yogurtMats} basePalette={basePalette} />
             <BlendFlecks colors={fleckColors} visibleRef={fleckVis} />
           </group>
           <group ref={toppings}>
