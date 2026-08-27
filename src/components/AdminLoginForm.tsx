@@ -38,7 +38,7 @@ export function AdminLoginForm() {
 
   return (
     <form className="checkout-panel" onSubmit={onSubmit}>
-      <h1 style={{ fontFamily: "var(--font-display)", margin: 0 }}>Admin</h1>
+      <h1 style={{ fontFamily: "var(--font)", margin: 0 }}>Admin</h1>
       <p className="lede">Kitchen board — password required.</p>
       <label className="field">
         Password

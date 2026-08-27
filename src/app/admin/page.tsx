@@ -7,18 +7,34 @@ import {
 } from "@/lib/admin-auth";
 import { getAppMode } from "@/lib/env";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  // Fail-closed: no ADMIN_PASSWORD → public demo must not expose the kitchen board.
+  const mode = getAppMode();
+
+  // Fail-closed board: no ADMIN_PASSWORD → no login form, no order APIs.
+  // Show a clear offline page instead of a cryptic Next.js 404.
   if (!isAdminConfigured()) {
-    notFound();
+    return (
+      <main>
+        <DemoBanner mode={mode} />
+        <div className="page-head">
+          <p className="fine-print">
+            <Link href="/">← Loving Cup</Link>
+          </p>
+          <h1>Kitchen board offline</h1>
+          <p className="lede">
+            Admin is fail-closed until <code>ADMIN_PASSWORD</code> is set in
+            the Vercel project env (Preview and Production), then redeploy. Do
+            not commit the password.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const authed = await readAdminSessionFromCookies();
-  const mode = getAppMode();
 
   return (
     <main>

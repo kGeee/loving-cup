@@ -63,7 +63,13 @@ export function AdminOrders() {
       </div>
       {error ? <p className="form-error">{error}</p> : null}
       {orders.length === 0 ? (
-        <p className="empty-state">No open pickup orders.</p>
+        <p className="empty-state">
+          No open pickup orders.
+          <span className="fine-print" style={{ display: "block", marginTop: "0.5rem" }}>
+            Demo mode keeps orders in this server instance only. For a durable
+            kitchen board across deploys, set Square secrets.
+          </span>
+        </p>
       ) : (
         <ul className="admin-list">
           {orders.map((o) => (
