@@ -4,6 +4,7 @@ import { useCart } from "@/components/CartProvider";
 import { PaymentForm } from "@/components/PaymentForm";
 import { cartLineTotal, formatUsd } from "@/lib/pricing";
 import type { AppOrder, LoyaltyPreview } from "@/types/menu";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
@@ -61,7 +62,14 @@ export function CartCheckout({ mode }: { mode: "demo" | "square" }) {
   }
 
   if (lines.length === 0 && !order) {
-    return <p className="empty-state">Your cart is empty. Pick a cup from the menu.</p>;
+    return (
+      <div className="empty-cart">
+        <p>Your cart is empty.</p>
+        <Link href="/#menu" className="btn btn--primary">
+          See menu
+        </Link>
+      </div>
+    );
   }
 
   if (order) {

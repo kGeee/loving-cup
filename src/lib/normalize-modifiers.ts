@@ -4,7 +4,7 @@
  * - Collapse Square's two mix-in grids into ONE chip row (design lock)
  * - Toasted coconut once; prefer free ($0) over paid duplicate
  * - Pull cone out of paid mix-in lists into Cone sheet
- * - Mark size `akid` sold out (not a menu item)
+ * - Drop size `akid` entirely (sold out — not a selectable row)
  */
 
 import {
@@ -35,12 +35,9 @@ export function inferModifierListRole(name: string): ModifierListRole {
   return "other";
 }
 
-function markAkidSoldOut(modifiers: MenuModifier[]): MenuModifier[] {
-  return modifiers.map((m) =>
-    isAkidSizeModifier(m.name)
-      ? { ...m, soldOut: true }
-      : m,
-  );
+/** akid is sold out and must not appear as a size chip. */
+function dropAkidSizeModifiers(modifiers: MenuModifier[]): MenuModifier[] {
+  return modifiers.filter((m) => !isAkidSizeModifier(m.name));
 }
 
 /**
@@ -115,7 +112,7 @@ export function normalizeModifierLists(
   const withRoles = lists.map((l) => ({
     ...l,
     role: l.role && l.role !== "other" ? l.role : inferModifierListRole(l.name),
-    modifiers: markAkidSoldOut(l.modifiers),
+    modifiers: l.modifiers,
   }));
 
   const mixins = withRoles.filter((l) => l.role === "mixin");
@@ -168,10 +165,13 @@ export function normalizeModifierLists(
     }
   }
 
-  // Ensure size modifiers mark akid sold out after any transforms.
+  // Size sheet: drop akid (not a selectable row); dedupe remaining.
   combined = combined.map((l) =>
     l.role === "size"
-      ? { ...l, modifiers: markAkidSoldOut(dedupeModifiers(l.modifiers)) }
+      ? {
+          ...l,
+          modifiers: dropAkidSizeModifiers(dedupeModifiers(l.modifiers)),
+        }
       : l,
   );
 

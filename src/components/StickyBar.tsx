@@ -11,11 +11,17 @@ export function StickyBar() {
     <header className="sticky-bar">
       <div className="sticky-bar__inner">
         <Link href="/" className="sticky-bar__brand" aria-label="Loving Cup home">
-          <span className="sticky-bar__mark" aria-hidden />
-          <span className="sticky-bar__name">Loving Cup</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="sticky-bar__logo"
+            src="/logo.webp"
+            alt="Loving Cup"
+            width={140}
+            height={58}
+          />
         </Link>
         <div className="sticky-bar__meta">
-          <span className="sticky-bar__nopa" title={`${NOPA.address}`}>
+          <span className="sticky-bar__nopa" title={NOPA.address}>
             {NOPA.name}
           </span>
           <Link href="/cart" className="sticky-bar__cart">

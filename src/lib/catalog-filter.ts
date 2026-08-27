@@ -1,7 +1,8 @@
 /**
  * Shared-catalog bleed + design-lock hide rules.
  * Square store also lists categories asides / adrink / apizza / astarter — filter them out.
- * `akid` is a sold-out SIZE MODIFIER, not a standalone menu item.
+ * `akid` is a sold-out SIZE MODIFIER and must never appear as a menu row or size chip.
+ * Printed sold-out flavors stay visible — do not hide them here.
  */
 
 const BLEED_NAME_PATTERNS: RegExp[] = [
@@ -29,7 +30,7 @@ const DENIED_CATEGORY_PATTERNS: RegExp[] = [
   /\bastarter\b/i,
 ];
 
-/** Items to hide entirely this pass (empty stubs / out-of-scope). */
+/** Items to hide entirely (empty stubs / out-of-scope). Printed sold-out flavors are NOT listed. */
 const HIDDEN_ITEM_PATTERNS: RegExp[] = [
   /\bastarter\b/i,
   /\brice\s*pudding\b/i,
@@ -39,6 +40,7 @@ const FROYO_CATEGORY_PATTERNS: RegExp[] = [
   /\bfroyo\b/i,
   /\bfrozen\s*yogurt\b/i,
   /\bloving\s*cup\b/i,
+  /\balovingcup\b/i,
   /\bsignature\b/i,
   /\bcyob\b/i,
   /\bmake\s*your\s*own\b/i,
@@ -58,7 +60,7 @@ const FROYO_ITEM_PATTERNS: RegExp[] = [
   /\byogurt\b/i,
 ];
 
-/** Size modifier named akid (sold out) — not a menu row. */
+/** Size modifier named akid (sold out) — not a menu row and not a size chip. */
 export function isAkidSizeModifier(name: string, sku?: string | null): boolean {
   const hay = `${name} ${sku ?? ""}`.toLowerCase();
   return /\bakid\b/.test(hay);
@@ -72,7 +74,7 @@ export function isDeniedCategory(name: string): boolean {
   return DENIED_CATEGORY_PATTERNS.some((re) => re.test(name.trim()));
 }
 
-/** Empty `astarter`, rice pudding (out of pass), etc. */
+/** Empty `astarter`, rice pudding, etc. Printed sold-out cups must remain visible. */
 export function shouldHideCatalogItem(name: string, sku?: string | null): boolean {
   const hay = `${name} ${sku ?? ""}`;
   if (HIDDEN_ITEM_PATTERNS.some((re) => re.test(hay))) return true;
