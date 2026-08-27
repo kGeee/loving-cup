@@ -631,6 +631,179 @@ code {
   display: grid;
   gap: 0.75rem;
   padding: 1.25rem 0;
+  justify-items: center;
+  text-align: center;
+}
+
+.pay-success__paid {
+  margin: 0;
+  font-family: var(--font);
+  font-size: var(--text-13);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.pay-success__paid--slot {
+  min-height: 13px;
+}
+
+.pay-success__meta {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-13);
+}
+
+.pay-swirl {
+  pointer-events: none;
+  width: 120px;
+  height: 120px;
+  margin: 0.25rem auto 0.5rem;
+}
+
+.pay-swirl__stage {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.pay-swirl__cup {
+  position: absolute;
+  inset: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(0.92);
+  opacity: 0;
+}
+
+.pay-swirl--in .pay-swirl__cup,
+.pay-swirl--drop .pay-swirl__cup,
+.pay-swirl--swirl .pay-swirl__cup,
+.pay-swirl--done .pay-swirl__cup,
+.pay-swirl--reduced .pay-swirl__cup {
+  animation: pay-cup-in 100ms ease-out forwards;
+}
+
+.pay-swirl--reduced .pay-swirl__cup {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+.pay-swirl__mixins {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.pay-swirl__sprite,
+.pay-swirl__dot {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 0;
+  opacity: 0;
+  transform: translateY(-28px) scale(1);
+  left: calc(42px + (var(--i, 0) - 2.5) * 10px);
+  top: 28px;
+}
+
+.pay-swirl__sprite {
+  background-size: 220%;
+  background-repeat: no-repeat;
+}
+
+.pay-swirl__dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.pay-swirl--drop .pay-swirl__sprite,
+.pay-swirl--drop .pay-swirl__dot,
+.pay-swirl--swirl .pay-swirl__sprite,
+.pay-swirl--swirl .pay-swirl__dot,
+.pay-swirl--done .pay-swirl__sprite,
+.pay-swirl--done .pay-swirl__dot {
+  animation: pay-mixin-drop 400ms ease-out forwards;
+}
+
+.pay-swirl--swirl .pay-swirl__stage {
+  animation: pay-swirl-spin 220ms ease-in-out forwards;
+}
+
+.pay-swirl--done .pay-swirl__stage {
+  transform: rotate(0deg);
+}
+
+.pay-swirl--done .pay-swirl__sprite,
+.pay-swirl--done .pay-swirl__dot {
+  opacity: 0;
+}
+
+.pay-swirl--reduced .pay-swirl__sprite,
+.pay-swirl--reduced .pay-swirl__dot {
+  display: none;
+}
+
+@keyframes pay-cup-in {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pay-mixin-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-28px) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(8px) scale(0.55);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(14px) scale(0.4);
+  }
+}
+
+@keyframes pay-swirl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(120deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-swirl__cup {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .pay-swirl__sprite,
+  .pay-swirl__dot {
+    display: none;
+  }
+
+  .pay-swirl__stage {
+    animation: none !important;
+  }
 }
 
 /* —— Admin (same tokens, fail-closed gate unchanged) —— */
