@@ -1,3 +1,4 @@
+import { isAdminConfigured } from "@/lib/admin-auth";
 import { getAppMode, getSquareEnv, hasSquareSecrets, NOPA } from "@/lib/env";
 import { NextResponse } from "next/server";
 
@@ -9,6 +10,7 @@ export async function GET() {
   return NextResponse.json({
     mode,
     squareConfigured: hasSquareSecrets(),
+    adminConfigured: isAdminConfigured(),
     environment: mode === "square" ? env.environment : null,
     location: NOPA,
     // Never echo secret values — names only.
@@ -17,6 +19,7 @@ export async function GET() {
       "SQUARE_ACCESS_TOKEN",
       "SQUARE_LOCATION_ID",
       "SQUARE_WEBHOOK_SIGNATURE_KEY",
+      "ADMIN_PASSWORD",
     ],
   });
 }

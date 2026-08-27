@@ -37,7 +37,17 @@ export function PaymentForm({
   const [status, setStatus] = useState<"idle" | "ready" | "paying" | "done" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [paidOrder, setPaidOrder] = useState<AppOrder | null>(null);
+  const [adminConfigured, setAdminConfigured] = useState(false);
   const cardRef = useRef<{ tokenize: () => Promise<{ status: string; token?: string }> } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/status")
+      .then((r) => r.json())
+      .then((d: { adminConfigured?: boolean }) =>
+        setAdminConfigured(Boolean(d.adminConfigured)),
+      )
+      .catch(() => setAdminConfigured(false));
+  }, []);
 
   useEffect(() => {
     if (mode === "demo") {
@@ -135,9 +145,16 @@ export function PaymentForm({
           {formatUsd(paidOrder.totalCents)} · order{" "}
           <code>{paidOrder.id}</code>
         </p>
-        <Link className="btn btn--primary" href="/admin">
-          View in admin
-        </Link>
+        {adminConfigured ? (
+          <Link className="btn btn--primary" href="/admin">
+            View in admin
+          </Link>
+        ) : (
+          <p className="fine-print">
+            Kitchen board is offline until <code>ADMIN_PASSWORD</code> is set
+            in Vercel.
+          </p>
+        )}
       </div>
     );
   }

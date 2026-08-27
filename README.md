@@ -12,7 +12,7 @@ Optional preview env (name only — set the value in Vercel, never commit it):
 ADMIN_PASSWORD=
 ```
 
-- Without `ADMIN_PASSWORD`: `/admin` and admin APIs are **404/401** (fail-closed).
+- Without `ADMIN_PASSWORD`: `/admin` shows **Kitchen board offline** (APIs stay 404 — fail-closed). Fake-pay will not link to admin.
 - With `ADMIN_PASSWORD`: `/admin` shows a password form, then a signed httpOnly cookie unlocks the board + Mark ready.
 - Menu / cart / fake-pay stay **public**. Preview mode is one 11px line under the sticky bar (not a Demo/POC banner).
 
@@ -94,7 +94,7 @@ npm start
 1. `/` — creamery home + shop menu (9 orderable + 7 sold-out); hours **11–10**; no delivery modal.
 2. Named cup → size only; Make Your Own → full sheet; **akid** not a size row.
 3. Fake-pay on `/cart`. Empty cart → one line + berry See menu.
-4. `/admin` — 404 unless `ADMIN_PASSWORD` is set.
+4. `/admin` — offline until `ADMIN_PASSWORD` is set in Vercel; then login → Mark ready.
 
 ## Square live path
 
