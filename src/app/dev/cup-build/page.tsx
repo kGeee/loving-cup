@@ -75,32 +75,28 @@ export default function DevCupBuildPage() {
   const onFinished = useCallback(() => setDone(true), []);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: "2rem",
-      }}
-    >
-      <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 13, letterSpacing: "0.06em", marginBottom: 12 }}>
-          DEV CUP BUILD · force motion
-        </p>
-        <CupBuildAnimation
-          key={key}
-          order={order}
-          reducedMotion={false}
-          forceMotion
-          onFinished={onFinished}
-        />
-        <p style={{ fontSize: 13, marginTop: 12 }}>
-          {done ? "Paid · NOPA pickup" : "Building…"}
+    <main className="dev-cup-build">
+      <p className="dev-cup-build__label">DEV CUP BUILD · force motion</p>
+      <CupBuildAnimation
+        key={key}
+        order={order}
+        reducedMotion={false}
+        forceMotion
+        presentation="hero"
+        onFinished={onFinished}
+        footer={
+          done ? (
+            <p className="cup-build-hero__paid">Paid · NOPA pickup</p>
+          ) : undefined
+        }
+      />
+      <div className="dev-cup-build__controls">
+        <p className="dev-cup-build__status">
+          {done ? "Complete — replay to watch again" : "Building your cup…"}
         </p>
         <button
           type="button"
-          className="btn btn--primary"
-          style={{ marginTop: 16, pointerEvents: "auto" }}
+          className="btn btn--primary cup-build-hero__cta"
           onClick={() => {
             setDone(false);
             setKey((k) => k + 1);

@@ -634,12 +634,14 @@ function SceneContent({
   blendedPalette,
   bits,
   logoTex,
+  transparentStage = false,
 }: {
   progressRef: MutableRefObject<number>;
   basePalette: YogurtPalette;
   blendedPalette: YogurtPalette;
   bits: Array<ToppingSpec & { bitKey: string; seed: number }>;
   logoTex: THREE.Texture | null;
+  transparentStage?: boolean;
 }) {
   const swirl = useRef<THREE.Group>(null);
   const cup = useRef<THREE.Group>(null);
@@ -808,9 +810,13 @@ function SceneContent({
 
   return (
     <>
-      <color attach="background" args={["#f3ebe0"]} />
-      <fog attach="fog" args={["#f3ebe0", 6, 13]} />
-      <ambientLight intensity={0.72} />
+      {!transparentStage ? (
+        <>
+          <color attach="background" args={["#f3ebe0"]} />
+          <fog attach="fog" args={["#f3ebe0", 6, 13]} />
+        </>
+      ) : null}
+      <ambientLight intensity={transparentStage ? 0.85 : 0.72} />
       <hemisphereLight args={["#fffaf4", "#d8c8b4", 0.85]} />
       <directionalLight
         position={[2.6, 5.8, 2.8]}
@@ -860,18 +866,32 @@ function SceneContent({
         </group>
       </group>
 
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.91, 0]}
-        receiveShadow
-      >
-        <circleGeometry args={[2.4, 32]} />
-        <meshStandardMaterial color="#e6ddd0" roughness={0.94} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.905, 0]}>
-        <circleGeometry args={[1.1, 32]} />
-        <meshBasicMaterial color="#3c2f29" transparent opacity={0.14} />
-      </mesh>
+      {!transparentStage ? (
+        <>
+          <mesh
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[0, -0.91, 0]}
+            receiveShadow
+          >
+            <circleGeometry args={[2.4, 32]} />
+            <meshStandardMaterial color="#e6ddd0" roughness={0.94} />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.905, 0]}>
+            <circleGeometry args={[1.1, 32]} />
+            <meshBasicMaterial color="#3c2f29" transparent opacity={0.14} />
+          </mesh>
+        </>
+      ) : (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.91, 0]} receiveShadow>
+          <circleGeometry args={[1.35, 32]} />
+          <meshStandardMaterial
+            color="#1a1512"
+            roughness={0.92}
+            transparent
+            opacity={0.22}
+          />
+        </mesh>
+      )}
     </>
   );
 }
@@ -931,12 +951,14 @@ export function CupBuildScene({
   blendedPalette,
   bits,
   onReady,
+  transparentStage = false,
 }: {
   progressRef: MutableRefObject<number>;
   basePalette: YogurtPalette;
   blendedPalette: YogurtPalette;
   bits: Array<ToppingSpec & { bitKey: string; seed: number }>;
   onReady?: () => void;
+  transparentStage?: boolean;
 }) {
   const logoTex = useLogoTexture();
   const readyRef = useRef(onReady);
@@ -950,10 +972,10 @@ export function CupBuildScene({
       camera={{ position: [1.25, 1.45, 3.35], fov: 30, near: 0.1, far: 40 }}
       gl={{
         antialias: true,
-        alpha: false,
+        alpha: transparentStage,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.12,
+        toneMappingExposure: transparentStage ? 1.18 : 1.12,
       }}
       style={{ width: "100%", height: "100%", borderRadius: 2 }}
       className="cup-build__canvas"
@@ -970,6 +992,7 @@ export function CupBuildScene({
           blendedPalette={blendedPalette}
           bits={bits}
           logoTex={logoTex}
+          transparentStage={transparentStage}
         />
         <CameraRig progressRef={progressRef} />
       </Suspense>

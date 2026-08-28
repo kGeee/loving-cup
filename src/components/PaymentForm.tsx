@@ -174,26 +174,23 @@ export function PaymentForm({
             reducedMotion={reducedMotion}
             forceMotion={forceMotion}
             onFinished={onBuildFinished}
+            footer={
+              <>
+                {showPaidLabel ? (
+                  <p className="cup-build-hero__paid">Paid · NOPA pickup</p>
+                ) : null}
+                {status === "done" ? (
+                  <Link
+                    className="btn btn--primary btn--pay cup-build-hero__cta"
+                    href="/#menu"
+                    style={{ pointerEvents: "auto" }}
+                  >
+                    See menu
+                  </Link>
+                ) : null}
+              </>
+            }
           />
-          {showPaidLabel ? (
-            <p className="pay-success__paid">Paid · NOPA pickup</p>
-          ) : (
-            <p
-              className="pay-success__paid pay-success__paid--slot"
-              aria-hidden
-            >
-              &nbsp;
-            </p>
-          )}
-          {status === "done" ? (
-            <Link
-              className="btn btn--primary btn--pay"
-              href="/#menu"
-              style={{ pointerEvents: "auto" }}
-            >
-              See menu
-            </Link>
-          ) : null}
         </div>
       ) : null}
 
