@@ -840,7 +840,9 @@ button.menu-row__body--btn {
   filter: blur(2px);
 }
 
-/* Wall / yogurt / finished: same still, cover the full 240 — no letterbox. */
+/* Wall / yogurt / finished: same still, cover the full 240 — no letterbox.
+ * Finished is a cup-center crop box (wall + yogurt disk); mix-ins out.
+ * Drop sprites keep around-cup shards from the same still. */
 .pay-swirl__cup-wall {
   position: absolute;
   inset: 0;
@@ -893,12 +895,21 @@ button.menu-row__body--btn {
   position: absolute;
   inset: 0;
   z-index: 5;
+  overflow: hidden;
+  opacity: 0;
+  box-shadow: 0 18px 28px rgba(60, 47, 41, 0.28);
+}
+
+.pay-swirl__finished-still {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 240px;
   height: 240px;
   object-fit: cover;
-  object-position: 50% 50%;
-  opacity: 0;
-  box-shadow: 0 18px 28px rgba(60, 47, 41, 0.28);
+  object-position: 44% 48%;
+  transform: scale(var(--finished-zoom, 2.7));
+  transform-origin: var(--finished-origin, 44% 48%);
 }
 
 .pay-swirl--play .pay-swirl__shadow {

@@ -46,10 +46,18 @@ const NAMED_STILL: Record<string, string> = {
   lone_wolf: DUDE_ABIDES,
 };
 
-/** Per-still crop anchors: cup wall (logo), yogurt mass, around-cup shards. */
+/**
+ * Per-still crop anchors. Same asset throughout:
+ * wall (logo) · yogurt mass · finished cup-center (wall + yogurt disk, mix-ins out)
+ * · around-cup shards (drop sprites only).
+ */
 type StillCrops = {
   wall: string;
   yogurt: string;
+  /** object-position for the Paid cup-center crop. */
+  finished: string;
+  /** Cover-box zoom so around-cup mix-ins leave the 240 square. */
+  finishedZoom: number;
   shards: string[];
 };
 
@@ -57,31 +65,43 @@ const STILL_CROPS: Record<string, StillCrops> = {
   "/cup-salty-dog.webp": {
     wall: "50% 70%",
     yogurt: "50% 28%",
+    finished: "50% 50%",
+    finishedZoom: 2.5,
     shards: ["14% 52%", "78% 58%", "18% 68%", "82% 42%", "10% 40%", "88% 65%"],
   },
   "/cup-strawberry-shortcake.webp": {
     wall: "46% 72%",
     yogurt: "46% 26%",
+    finished: "44% 48%",
+    finishedZoom: 2.7,
     shards: ["12% 42%", "82% 52%", "16% 65%", "78% 36%", "8% 55%", "90% 60%"],
   },
   "/cup-thinner-mint.webp": {
     wall: "50% 58%",
     yogurt: "50% 48%",
+    finished: "50% 50%",
+    finishedZoom: 3.35,
     shards: ["72% 22%", "78% 38%", "18% 42%", "22% 68%", "68% 72%", "12% 28%"],
   },
   "/cup-peanut-butter-cup.webp": {
     wall: "50% 68%",
     yogurt: "50% 30%",
+    finished: "50% 50%",
+    finishedZoom: 3.35,
     shards: ["16% 48%", "80% 55%", "20% 70%", "84% 40%", "10% 38%", "88% 68%"],
   },
   "/cup-blueberry-dream.webp": {
     wall: "50% 48%",
     yogurt: "48% 42%",
+    finished: "46% 42%",
+    finishedZoom: 1.8,
     shards: ["22% 28%", "78% 32%", "18% 72%", "82% 68%", "12% 48%", "88% 52%"],
   },
   "/cup-lone-wolf.webp": {
     wall: "42% 48%",
     yogurt: "40% 42%",
+    finished: "34% 50%",
+    finishedZoom: 2.15,
     shards: ["72% 38%", "78% 58%", "18% 55%", "22% 30%", "68% 72%", "12% 70%"],
   },
 };
@@ -134,7 +154,8 @@ function orderHasChocolateBase(line: CartLine): boolean {
 /**
  * Named product still when it exists; else chocolate base → Dude Abides,
  * pale (Dirty Hipster, Mango Dream, Crunchy Cereal, MYO, …) → Shortcake.
- * Wall / yogurt / finished all share this still. Mix-in shards may prefer.
+ * Wall / yogurt / finished share this still (finished = cup-center crop).
+ * Mix-in drop sprites crop around-cup shards from the same still (or prefs).
  */
 function cupStillForOrder(order: AppOrder): string {
   const line = order.lineItems[0];
@@ -242,13 +263,19 @@ function PaySwirl({
                 />
               ))}
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className="pay-swirl__finished"
-              src={still}
-              alt=""
-              style={{ objectPosition: "50% 50%" }}
-            />
+            <div className="pay-swirl__finished">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="pay-swirl__finished-still"
+                src={still}
+                alt=""
+                style={{
+                  objectPosition: crops.finished,
+                  ["--finished-origin" as string]: crops.finished,
+                  ["--finished-zoom" as string]: String(crops.finishedZoom),
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
