@@ -16,6 +16,11 @@ export interface MenuModifier {
   ordinal?: number;
   /** e.g. size `akid` — sold out, cannot select / order. */
   soldOut?: boolean;
+  /**
+   * Printed chip with no Square Catalog modifier.
+   * Grey in UI; demo still charges +$0.75; never POST to live Square.
+   */
+  noSku?: boolean;
 }
 
 export interface MenuModifierList {
@@ -50,6 +55,12 @@ export interface MenuItem {
   /** Item-level sold out (rare). Prefer modifier.soldOut for size `akid`. */
   soldOut: boolean;
   imageUrl?: string;
+  /**
+   * Named-cup locked recipe mix-in modifier IDs (included).
+   * When set, pricing uses these IDs only — not MYO’s first-N-selected-free.
+   * Demo catalog only; live Square never invents demo modifier IDs.
+   */
+  recipeMixinIds?: string[];
 }
 
 export interface MenuCategory {
@@ -71,6 +82,8 @@ export interface CartModifierSelection {
   modifierId: string;
   name: string;
   priceCents: MoneyCents;
+  /** Printed-only chip — strip before live Square CreateOrder. */
+  noSku?: boolean;
 }
 
 export interface CartLine {

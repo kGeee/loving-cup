@@ -22,11 +22,14 @@ function cartLineToSquare(line: CartLine): Square.OrderLineItem {
     quantity: String(line.quantity),
     catalogObjectId: line.variationId,
     name: `${line.itemName} — ${line.variationName}`,
-    modifiers: line.modifiers.map((m) => ({
-      catalogObjectId: m.modifierId,
-      name: m.name,
-      basePriceMoney: centsToMoney(m.priceCents),
-    })),
+    // Never POST grey / printed-only chip ids to live Square.
+    modifiers: line.modifiers
+      .filter((m) => !m.noSku)
+      .map((m) => ({
+        catalogObjectId: m.modifierId,
+        name: m.name,
+        basePriceMoney: centsToMoney(m.priceCents),
+      })),
     note: line.note,
   };
 }
