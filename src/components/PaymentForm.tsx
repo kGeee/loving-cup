@@ -25,27 +25,26 @@ declare global {
   }
 }
 
-/** Existing set stills only — never generate froyo images. */
+/** Existing set stills only — never invent froyo images. */
 const PALE_STILL = "/cup-strawberry-shortcake.webp";
-const CHOCOLATE_STILL = "/cup-lone-wolf.webp";
-/** MYO / pale fallback — Strawberry Shortcake cup. */
+/** Dude Abides product still — chocolate / Lone Wolf. */
+const DUDE_ABIDES = "/cup-lone-wolf.webp";
+/** Boitano cookies-and-cream still — Thinner Mint + Oreos shards. */
+const BOITANO = "/cup-thinner-mint.webp";
 const MYO_STILL = PALE_STILL;
 
-/** Named cups with a shipped product still — must win over base fallback. */
+/**
+ * Design-lock named → product still (never shuffle).
+ * Dirty Hipster / Mango Dream / Crunchy Cereal have no still → base fallback.
+ */
 const NAMED_STILL: Record<string, string> = {
   salty_dog: "/cup-salty-dog.webp",
   strawberry_shortcake: "/cup-strawberry-shortcake.webp",
-  thinner_mint: "/cup-thinner-mint.webp",
+  thinner_mint: BOITANO,
   peanut_butter_cup: "/cup-peanut-butter-cup.webp",
   blueberry_dream: "/cup-blueberry-dream.webp",
-  lone_wolf: "/cup-lone-wolf.webp",
+  lone_wolf: DUDE_ABIDES,
 };
-
-/**
- * Mix-ins that force the chocolate still when the cup has no named product photo.
- * Nutella (Dirty Hipster) must never resolve to Shortcake.
- */
-const CHOCOLATE_MIXIN_KEYS = new Set(["nutella", "ganache"]);
 
 /** Per-still crop anchors: cup wall (logo), yogurt mass, around-cup shards. */
 type StillCrops = {
@@ -87,11 +86,15 @@ const STILL_CROPS: Record<string, StillCrops> = {
   },
 };
 
-/** Oreos → Boitano shard crop on thinner-mint (top-right Oreo pieces). */
-const OREOS_BOITANO = {
-  src: "/cup-thinner-mint.webp",
-  pos: "74% 24%",
-} as const;
+/**
+ * Mix-in shard prefs (override same-still shards).
+ * Oreos → Boitano. Nutella → Dude Abides left crop — never Thinner Mint.
+ */
+const MIXIN_STILL_PREF: Record<string, { src: string; pos: string }> = {
+  oreos: { src: BOITANO, pos: "74% 24%" },
+  "oreo cookie": { src: BOITANO, pos: "74% 24%" },
+  nutella: { src: DUDE_ABIDES, pos: "18% 42%" },
+};
 
 type Sprite = { key: string; src: string; pos: string };
 
@@ -120,25 +123,18 @@ function mixinKey(name: string): string {
     .trim();
 }
 
-/** Chocolate yogurt base (MYO) or chocolate-tinted named cup without its own still. */
-function orderLooksChocolate(line: CartLine): boolean {
+/** Chocolate yogurt base only — mix-ins never flip the cup still (Nutella stays a shard). */
+function orderHasChocolateBase(line: CartLine): boolean {
   const bases = line.modifiers.filter(isBaseMod);
   if (bases.some((m) => /\bchocolate\b/i.test(m.name))) return true;
-
-  const mixins = line.modifiers.filter(
-    (m) => !isConeMod(m) && !isSizeMod(m) && !isBaseMod(m),
-  );
-  if (mixins.some((m) => CHOCOLATE_MIXIN_KEYS.has(mixinKey(m.name)))) {
-    return true;
-  }
-
-  // Sold-out / unnamed chocolate recipes with no modifiers yet.
-  return /\b(mocha|lone wolf|chocolate)\b/i.test(line.itemName);
+  // Named sold-out chocolate recipes with no base modifier on the line.
+  return /\b(mocha|lone wolf)\b/i.test(line.itemName);
 }
 
 /**
- * Named flavor still when it exists; else chocolate → Lone Wolf, pale → Shortcake.
- * Never invent stills. Never Shortcake a Nutella / chocolate cup (e.g. Dirty Hipster).
+ * Named product still when it exists; else chocolate base → Dude Abides,
+ * pale (Dirty Hipster, Mango Dream, Crunchy Cereal, MYO, …) → Shortcake.
+ * Wall / yogurt / finished all share this still. Mix-in shards may prefer.
  */
 function cupStillForOrder(order: AppOrder): string {
   const line = order.lineItems[0];
@@ -149,7 +145,7 @@ function cupStillForOrder(order: AppOrder): string {
   );
   if (hit) return hit[1];
 
-  return orderLooksChocolate(line) ? CHOCOLATE_STILL : PALE_STILL;
+  return orderHasChocolateBase(line) ? DUDE_ABIDES : PALE_STILL;
 }
 
 function cropsFor(still: string): StillCrops {
@@ -157,8 +153,8 @@ function cropsFor(still: string): StillCrops {
 }
 
 /**
- * Mix-in shards from the same set still (around-cup). Cap 6.
- * Oreos always uses the Boitano thinner-mint shard. Cone excluded.
+ * Mix-in shards. Cap 6. Oreos → Boitano; Nutella → Dude Abides left crop.
+ * Others crop from the cup still. Cone excluded.
  */
 function spritesForOrder(order: AppOrder, still: string): Sprite[] {
   const line: CartLine | undefined = order.lineItems[0];
@@ -171,8 +167,9 @@ function spritesForOrder(order: AppOrder, still: string): Sprite[] {
 
   return mixins.slice(0, 6).map((m, i) => {
     const key = mixinKey(m.name);
-    if (key === "oreos" || key === "oreo cookie") {
-      return { key: m.modifierId, src: OREOS_BOITANO.src, pos: OREOS_BOITANO.pos };
+    const pref = MIXIN_STILL_PREF[key];
+    if (pref) {
+      return { key: m.modifierId, src: pref.src, pos: pref.pos };
     }
     return {
       key: m.modifierId,
@@ -217,19 +214,20 @@ function PaySwirl({
         <div className="pay-swirl__perspective">
           <div className="pay-swirl__stage">
             <div className="pay-swirl__shadow" />
-            <div
+            {/* Wall + yogurt + finished = same still, object-fit cover fills 240. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               className="pay-swirl__cup-wall"
-              style={{
-                backgroundImage: `url(${still})`,
-                backgroundPosition: crops.wall,
-              }}
+              src={still}
+              alt=""
+              style={{ objectPosition: crops.wall }}
             />
-            <div
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               className="pay-swirl__yogurt"
-              style={{
-                backgroundImage: `url(${still})`,
-                backgroundPosition: crops.yogurt,
-              }}
+              src={still}
+              alt=""
+              style={{ objectPosition: crops.yogurt }}
             />
             <div className="pay-swirl__mixins">
               {sprites.map((s, i) => (
@@ -244,12 +242,12 @@ function PaySwirl({
                 />
               ))}
             </div>
-            <div
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               className="pay-swirl__finished"
-              style={{
-                backgroundImage: `url(${still})`,
-                backgroundPosition: "50% 50%",
-              }}
+              src={still}
+              alt=""
+              style={{ objectPosition: "50% 50%" }}
             />
           </div>
         </div>
