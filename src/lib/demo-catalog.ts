@@ -1,15 +1,17 @@
 /**
  * Shop-true demo catalog — mirrors live Square alovingcup NOPA menu.
  *
- * Orderable named cups (9) + Make Your Own; 7 printed flavors sold-out (visible, no price).
- * Pricing: Cup base $4.99 + size mods (akid not a row) · MYO bases · mix-ins 2 included / extras +$0.75 · cone +$1.25
- * Never JPEG $6/$7/$8/$12 variation hardcodes.
+ * Orderable named cups (8) + Make Your Own; 7 printed flavors sold-out (visible, no price).
+ * Named cups: size (required) → mix-ins (recipe locked included + extras +$0.75) → cone +$1.25.
+ * MYO: size, base, mix-ins (first 2 selected free / extras +$0.75), cone +$1.25.
+ * Never JPEG $6/$7/$8/$12 variation hardcodes. Never POST demo IDs on the live Square path.
  */
 
 import { normalizeMenuItem } from "@/lib/normalize-modifiers";
 import type {
   CatalogPayload,
   MenuItem,
+  MenuModifier,
   MenuModifierList,
   MenuVariation,
 } from "@/types/menu";
@@ -44,18 +46,19 @@ const BASES = [
   { name: "Banana", cents: 50 },
 ] as const;
 
-/** One mix-in chip list — toasted coconut once. First 2 included; extras +$0.75. */
-const MIX_INS = [
-  "Fresh Strawberries",
+/**
+ * Printed mix-in chips (25 = 13 Square + 12 nosku). Extras +$0.75.
+ * Square-subset names stay orderable with demo SKU ids.
+ * The 12 board-only names below are grey (`noSku`) — demo still +$0.75; never POST live.
+ * Unmapped recipe names (Mango, Heath Bar, …) are locked chips on their cup only.
+ */
+const SQUARE_MIX_INS = [
+  "Strawberries",
   "Blueberries",
-  "Banana",
-  "Oreo Cookie",
-  "Graham Cracker",
+  "Bananas",
+  "Oreos",
   "Chocolate Chips",
-  "Caramel Sauce",
-  "Hot Fudge",
-  "Sprinkles",
-  "Almonds",
+  "Rainbow Sprinkles",
   "Toasted Coconut",
   "Gummy Bears",
   "Nutella",
@@ -64,6 +67,78 @@ const MIX_INS = [
   "Pretzels",
   "Jr Mints",
 ] as const;
+
+/** Board-only printed names — no Square modifier. Do not invent beyond this list. */
+const NOSKU_MIX_INS = [
+  "Almond Butter",
+  "Cookie Dough",
+  "English Toffee",
+  "Espresso",
+  "Granola",
+  "Pecans",
+  "Pineapple",
+  "Pistachios",
+  "Raspberries",
+  "Walnuts",
+  "Ganache",
+  "Salted Caramel",
+] as const;
+
+const MIX_INS = [...SQUARE_MIX_INS, ...NOSKU_MIX_INS] as const;
+
+const NOSKU_KEYS = new Set(NOSKU_MIX_INS.map((n) => n.toLowerCase()));
+
+/** Recipe ingredient → printed MIX_INS name when the chip already exists. */
+const RECIPE_ALIASES: Record<string, (typeof MIX_INS)[number]> = {
+  // Dirty Hipster / Thinner Mint / Monster Cookie: Oreos → Oreos (locked w/ Nutella).
+  oreos: "Oreos",
+  oreo: "Oreos",
+  "oreo cookie": "Oreos",
+  "jr mints": "Jr Mints",
+  "junior mints": "Jr Mints",
+  "fresh strawberries": "Strawberries",
+  strawberries: "Strawberries",
+  banana: "Bananas",
+  bananas: "Bananas",
+  sprinkles: "Rainbow Sprinkles",
+  "rainbow sprinkles": "Rainbow Sprinkles",
+  // Salted Caramel aliases over Caramel Sauce (Salty Dog / Crunchy Cereal).
+  "caramel sauce": "Salted Caramel",
+  "salted caramel sauce": "Salted Caramel",
+  "salted caramel": "Salted Caramel",
+  pretzels: "Pretzels",
+  blueberries: "Blueberries",
+  "toasted coconut": "Toasted Coconut",
+  nutella: "Nutella",
+  "animal crackers": "Animal Crackers",
+  "almond butter": "Almond Butter",
+  "cookie dough": "Cookie Dough",
+  espresso: "Espresso",
+};
+
+/** Yogurt bases in the ingredient line — not mix-in chips. */
+const BASE_INGREDIENT = /^(vanilla|chocolate|nonfat\s+vanilla|nonfat\s+chocolate|half|non-dairy|banana)$/i;
+
+function normKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Pull mix-in tokens from "Vanilla + Oreos + Junior Mints" (skip yogurt base). */
+export function recipeMixinsFromIngredients(ingredients: string): string[] {
+  return ingredients
+    .split("+")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => !BASE_INGREDIENT.test(normKey(s)))
+    .map((s) => {
+      const key = normKey(s);
+      return RECIPE_ALIASES[key] ?? s.trim();
+    });
+}
 
 function sizeList(itemKey: string): MenuModifierList {
   return {
@@ -99,7 +174,7 @@ function baseList(itemKey: string): MenuModifierList {
   };
 }
 
-function mixinList(itemKey: string): MenuModifierList {
+function myoMixinList(itemKey: string): MenuModifierList {
   return {
     id: `ml_${itemKey}_mixin`,
     name: "Mix-ins",
@@ -111,9 +186,9 @@ function mixinList(itemKey: string): MenuModifierList {
     modifiers: MIX_INS.map((name, i) => ({
       id: `mod_${itemKey}_mixin_${i}`,
       name,
-      // Catalog price for extras beyond includedCount; UI does not label the 2 included.
       price: USD(75),
       ordinal: i,
+      noSku: NOSKU_KEYS.has(name.toLowerCase()) || undefined,
     })),
   };
 }
@@ -137,17 +212,85 @@ function coneList(itemKey: string): MenuModifierList {
   };
 }
 
-/** Named cups: size sheet only (no mix-in / base / cone sheet). */
-function namedCupSheets(itemKey: string): MenuModifierList[] {
-  return [sizeList(itemKey)];
+/**
+ * Named-cup mix-ins: printed chips at +$0.75; locked recipe IDs included ($0).
+ * Unmapped recipe names become locked chips on this cup only (not global extras).
+ * No MYO includedCount — only recipeMixinIds are free.
+ */
+function namedMixinList(
+  itemKey: string,
+  recipeNames: string[],
+): { list: MenuModifierList; recipeMixinIds: string[] } {
+  const recipeMixinIds: string[] = [];
+  const mods: MenuModifier[] = [];
+  let ordinal = 0;
+
+  for (const name of recipeNames) {
+    const key = normKey(name);
+    const printed = MIX_INS.find((n) => normKey(n) === key);
+    const display = printed ?? name;
+    const id = printed
+      ? `mod_${itemKey}_mixin_${MIX_INS.indexOf(printed)}`
+      : `mod_${itemKey}_recipe_${key.replace(/\s+/g, "_")}`;
+    if (recipeMixinIds.includes(id)) continue;
+    recipeMixinIds.push(id);
+    mods.push({
+      id,
+      name: display,
+      price: USD(0),
+      ordinal: ordinal++,
+      noSku: printed
+        ? NOSKU_KEYS.has(printed.toLowerCase()) || undefined
+        : true,
+    });
+  }
+
+  for (let i = 0; i < MIX_INS.length; i++) {
+    const name = MIX_INS[i];
+    const id = `mod_${itemKey}_mixin_${i}`;
+    if (recipeMixinIds.includes(id)) continue;
+    if (mods.some((m) => normKey(m.name) === normKey(name))) continue;
+    mods.push({
+      id,
+      name,
+      price: USD(75),
+      ordinal: ordinal++,
+      noSku: NOSKU_KEYS.has(name.toLowerCase()) || undefined,
+    });
+  }
+
+  return {
+    recipeMixinIds,
+    list: {
+      id: `ml_${itemKey}_mixin`,
+      name: "Mix-ins",
+      role: "mixin",
+      selectionType: "MULTIPLE",
+      minSelected: recipeMixinIds.length,
+      maxSelected: 10,
+      // Named cups do NOT use MYO's first-2-free; only recipeMixinIds are included.
+      modifiers: mods,
+    },
+  };
 }
 
-/** Make Your Own: size, base, 2 included mix-ins then extra +$0.75, cone +$1.25. */
+/** Named cups: size → mix-ins → cone. No base picker. */
+function namedCupSheets(
+  itemKey: string,
+  recipeNames: string[],
+): { lists: MenuModifierList[]; recipeMixinIds: string[] } {
+  const { list, recipeMixinIds } = namedMixinList(itemKey, recipeNames);
+  return {
+    recipeMixinIds,
+    lists: [sizeList(itemKey), list, coneList(itemKey)],
+  };
+}
+
 function myoSheets(itemKey: string): MenuModifierList[] {
   return [
     sizeList(itemKey),
     baseList(itemKey),
-    mixinList(itemKey),
+    myoMixinList(itemKey),
     coneList(itemKey),
   ];
 }
@@ -160,7 +303,7 @@ type NamedCup = {
   imageUrl?: string;
 };
 
-/** Live Square alovingcup orderable named cups (these nine only, plus MYO). */
+/** Live Square alovingcup orderable named cups (these eight + MYO). */
 const ORDERABLE_CUPS: NamedCup[] = [
   {
     key: "mango_dream",
@@ -171,6 +314,7 @@ const ORDERABLE_CUPS: NamedCup[] = [
     key: "lone_wolf",
     name: "Lone Wolf",
     ingredients: "Chocolate + Almond Butter + Heath Bar",
+    imageUrl: "/cup-lone-wolf.webp",
   },
   {
     key: "salty_dog",
@@ -182,6 +326,7 @@ const ORDERABLE_CUPS: NamedCup[] = [
     key: "blueberry_dream",
     name: "Blueberry Dream",
     ingredients: "Vanilla + Blueberries + Toasted Coconut",
+    imageUrl: "/cup-blueberry-dream.webp",
   },
   {
     key: "dirty_hipster",
@@ -251,6 +396,8 @@ const PRINTED_SOLD_OUT: NamedCup[] = [
 ];
 
 function orderableNamedCup(cup: NamedCup): MenuItem {
+  const recipeNames = recipeMixinsFromIngredients(cup.ingredients);
+  const { lists, recipeMixinIds } = namedCupSheets(cup.key, recipeNames);
   return normalizeMenuItem({
     id: `item_${cup.key}`,
     name: cup.name,
@@ -264,14 +411,14 @@ function orderableNamedCup(cup: NamedCup): MenuItem {
         sku: `cup-${cup.key}`,
       },
     ],
-    modifierLists: namedCupSheets(cup.key),
+    modifierLists: lists,
     soldOut: false,
     imageUrl: cup.imageUrl,
+    recipeMixinIds,
   });
 }
 
 function printedSoldOutCup(cup: NamedCup): MenuItem {
-  // Sold-out printed rows: no orderable variation price for the menu UI.
   return normalizeMenuItem({
     id: `item_${cup.key}`,
     name: cup.name,
@@ -283,7 +430,6 @@ function printedSoldOutCup(cup: NamedCup): MenuItem {
         id: `var_cup_${cup.key}`,
         name: "Cup",
         sku: `cup-${cup.key}`,
-        // Price present for type shape only; MenuGrid omits price when soldOut.
         price: USD(499),
         ordinal: 0,
       },
@@ -336,13 +482,29 @@ export function getDemoCatalog(): CatalogPayload {
   };
 }
 
+/**
+ * Price selected mix-ins.
+ * - Named cups with recipeMixinIds: only those IDs are $0; every other selected chip pays catalog price.
+ * - MYO (includedCount): first N selected are free (selection order).
+ */
 export function pricedModifiersForLine(
   modifierList: MenuModifierList,
   selectedModifierIds: string[],
+  recipeMixinIds?: string[],
 ): { modifierId: string; name: string; priceCents: number }[] {
   const selected = modifierList.modifiers.filter((m) =>
     selectedModifierIds.includes(m.id),
   );
+
+  if (recipeMixinIds && recipeMixinIds.length > 0) {
+    const locked = new Set(recipeMixinIds);
+    return selected.map((m) => ({
+      modifierId: m.id,
+      name: m.name,
+      priceCents: locked.has(m.id) ? 0 : m.price.amount,
+    }));
+  }
+
   const included = modifierList.includedCount ?? 0;
   return selected.map((m, index) => ({
     modifierId: m.id,

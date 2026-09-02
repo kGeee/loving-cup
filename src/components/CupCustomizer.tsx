@@ -6,7 +6,11 @@ import type { MenuItem, MenuModifierList } from "@/types/menu";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
-function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[]> {
+function defaultSelections(
+  item: MenuItem,
+): Record<string, string[]> {
+  const lists = item.modifierLists;
+  const locked = new Set(item.recipeMixinIds ?? []);
   const init: Record<string, string[]> = {};
   for (const list of lists) {
     if (list.role === "size") {
@@ -14,6 +18,12 @@ function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[
         list.modifiers.find((m) => !m.soldOut) ?? list.modifiers[0];
       init[list.id] =
         firstOrderable && !firstOrderable.soldOut ? [firstOrderable.id] : [];
+      continue;
+    }
+    if (list.role === "mixin" && locked.size > 0) {
+      init[list.id] = list.modifiers
+        .filter((m) => locked.has(m.id))
+        .map((m) => m.id);
       continue;
     }
     if (list.selectionType === "SINGLE" && list.minSelected > 0) {
@@ -26,27 +36,45 @@ function defaultSizeSelection(lists: MenuModifierList[]): Record<string, string[
   return init;
 }
 
-function chipPriceLabel(
-  list: MenuModifierList,
-  amount: number,
-): string | null {
-  // Mix-ins: first 2 included — do not put +$0.75 on included chips.
-  if (list.role === "mixin" && (list.includedCount ?? 0) > 0) {
-    return null;
-  }
+function chipPriceLabel(amount: number, locked: boolean): string | null {
+  if (locked) return "Included";
+  // MYO: legend says "2 included"; chips still print +$0.75 (first 2 selected price $0 in cart).
   if (amount <= 0) return null;
   return `+${formatUsd(amount)}`;
 }
 
-export function CupCustomizer({ item }: { item: MenuItem }) {
+export function CupCustomizer({
+  item,
+  onAdded,
+  onCancel,
+}: {
+  item: MenuItem;
+  /** Sheet mode: called after add instead of navigating to /cart. */
+  onAdded?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const { addLine } = useCart();
+  const recipeLocked = useMemo(
+    () => new Set(item.recipeMixinIds ?? []),
+    [item.recipeMixinIds],
+  );
+  const isNamed = recipeLocked.size > 0;
+  const isMyo = /make\s*your\s*own/i.test(item.name);
+
   // Size lives on modifiers (+$1.01 etc). Variation is the cup base ($4.99).
   const [variationId] = useState(item.variations[0]?.id ?? "");
   const [selections, setSelections] = useState<Record<string, string[]>>(() =>
-    defaultSizeSelection(item.modifierLists),
+    defaultSelections(item),
   );
   const [error, setError] = useState<string | null>(null);
+
+  // Named cups: no base picker (sheets omit it). Live Square with no mix-in
+  // list stays size-only — demo local add-ons are demo-catalog only.
+  const sheets = useMemo(() => {
+    if (isNamed || isMyo) return item.modifierLists;
+    return item.modifierLists.filter((l) => l.role !== "base");
+  }, [item.modifierLists, isNamed, isMyo]);
 
   const preview = useMemo(() => {
     try {
@@ -70,6 +98,7 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
   function toggle(listId: string, modId: string, list: MenuModifierList) {
     const mod = list.modifiers.find((m) => m.id === modId);
     if (mod?.soldOut) return;
+    if (recipeLocked.has(modId)) return;
     setSelections((prev) => {
       const current = prev[listId] ?? [];
       if (list.selectionType === "SINGLE") {
@@ -117,7 +146,12 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
         lineId: crypto.randomUUID(),
       });
       addLine(line);
-      router.push("/cart");
+      if (onAdded) {
+        onAdded();
+        router.push("/cart");
+      } else {
+        router.push("/cart");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add to cart");
     }
@@ -127,12 +161,16 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
     return (
       <div className="customizer">
         <p className="sold-out-banner">Sold out — cannot be ordered.</p>
+        {onCancel ? (
+          <button type="button" className="btn btn--ghost" onClick={onCancel}>
+            Close
+          </button>
+        ) : null}
       </div>
     );
   }
 
   const basePrice = item.variations[0]?.price.amount ?? 0;
-  const isMyo = /make\s*your\s*own/i.test(item.name);
 
   return (
     <div className="customizer">
@@ -141,33 +179,38 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
         {isMyo ? (
           <span> · size, base, mix-ins &amp; cone</span>
         ) : (
-          <span> · choose a size</span>
+          <span> · size, mix-ins &amp; cone</span>
         )}
       </p>
 
-      {item.modifierLists.map((list) => (
+      {sheets.map((list) => (
         <fieldset key={list.id} className="sheet">
           <legend>
             {list.name}
             {list.role === "size" ? " · required" : null}
-            {list.role === "mixin" && list.includedCount
+            {list.role === "mixin" && isNamed
+              ? " · recipe included, extras +$0.75"
+              : null}
+            {list.role === "mixin" && !isNamed && list.includedCount
               ? ` · ${list.includedCount} included, extras +$0.75`
               : null}
             {list.role === "cone" ? " · +$1.25" : null}
           </legend>
           <div className="chip-row chip-row--wrap">
             {list.modifiers.map((m) => {
-              const on = (selections[list.id] ?? []).includes(m.id);
+              const locked = recipeLocked.has(m.id);
+              const on = (selections[list.id] ?? []).includes(m.id) || locked;
               const priceLabel = m.soldOut
                 ? null
-                : chipPriceLabel(list, m.price.amount);
+                : chipPriceLabel(m.price.amount, locked);
               return (
                 <button
                   key={m.id}
                   type="button"
-                  disabled={m.soldOut}
-                  aria-disabled={m.soldOut || undefined}
-                  className={`chip ${on ? "chip--on" : ""} ${m.soldOut ? "chip--soldout" : ""}`}
+                  disabled={m.soldOut || locked}
+                  aria-disabled={m.soldOut || locked || undefined}
+                  aria-pressed={on}
+                  className={`chip ${on ? "chip--on" : ""} ${m.soldOut ? "chip--soldout" : ""} ${locked ? "chip--locked" : ""} ${m.noSku && !locked ? "chip--no-sku" : ""}`}
                   onClick={() => toggle(list.id, m.id, list)}
                 >
                   {m.name}
@@ -187,8 +230,12 @@ export function CupCustomizer({ item }: { item: MenuItem }) {
 
       <div className="customizer__footer">
         <p className="customizer__total">{formatUsd(total)}</p>
-        <button type="button" className="btn btn--primary" onClick={addToCart}>
-          Add to cart
+        <button
+          type="button"
+          className="btn btn--primary btn--berry-add"
+          onClick={addToCart}
+        >
+          Add
         </button>
       </div>
     </div>

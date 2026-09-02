@@ -29,6 +29,7 @@ export default async function HomePage() {
           width={2500}
           height={1667}
         />
+        <div className="hero__scrim" aria-hidden />
         <div className="hero__content">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
