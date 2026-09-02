@@ -26,8 +26,12 @@ declare global {
 }
 
 /** Existing set stills only — never generate froyo images. */
-const MYO_STILL = "/cup-strawberry-shortcake.webp";
+const PALE_STILL = "/cup-strawberry-shortcake.webp";
+const CHOCOLATE_STILL = "/cup-lone-wolf.webp";
+/** MYO / pale fallback — Strawberry Shortcake cup. */
+const MYO_STILL = PALE_STILL;
 
+/** Named cups with a shipped product still — must win over base fallback. */
 const NAMED_STILL: Record<string, string> = {
   salty_dog: "/cup-salty-dog.webp",
   strawberry_shortcake: "/cup-strawberry-shortcake.webp",
@@ -36,6 +40,12 @@ const NAMED_STILL: Record<string, string> = {
   blueberry_dream: "/cup-blueberry-dream.webp",
   lone_wolf: "/cup-lone-wolf.webp",
 };
+
+/**
+ * Mix-ins that force the chocolate still when the cup has no named product photo.
+ * Nutella (Dirty Hipster) must never resolve to Shortcake.
+ */
+const CHOCOLATE_MIXIN_KEYS = new Set(["nutella", "ganache"]);
 
 /** Per-still crop anchors: cup wall (logo), yogurt mass, around-cup shards. */
 type StillCrops = {
@@ -110,16 +120,36 @@ function mixinKey(name: string): string {
     .trim();
 }
 
-/** Named flavor still; MYO / missing → pale Strawberry Shortcake cup. No invented stills. */
+/** Chocolate yogurt base (MYO) or chocolate-tinted named cup without its own still. */
+function orderLooksChocolate(line: CartLine): boolean {
+  const bases = line.modifiers.filter(isBaseMod);
+  if (bases.some((m) => /\bchocolate\b/i.test(m.name))) return true;
+
+  const mixins = line.modifiers.filter(
+    (m) => !isConeMod(m) && !isSizeMod(m) && !isBaseMod(m),
+  );
+  if (mixins.some((m) => CHOCOLATE_MIXIN_KEYS.has(mixinKey(m.name)))) {
+    return true;
+  }
+
+  // Sold-out / unnamed chocolate recipes with no modifiers yet.
+  return /\b(mocha|lone wolf|chocolate)\b/i.test(line.itemName);
+}
+
+/**
+ * Named flavor still when it exists; else chocolate → Lone Wolf, pale → Shortcake.
+ * Never invent stills. Never Shortcake a Nutella / chocolate cup (e.g. Dirty Hipster).
+ */
 function cupStillForOrder(order: AppOrder): string {
   const line = order.lineItems[0];
-  if (line) {
-    const hit = Object.entries(NAMED_STILL).find(([key]) =>
-      line.itemId.includes(key),
-    );
-    if (hit) return hit[1];
-  }
-  return MYO_STILL;
+  if (!line) return MYO_STILL;
+
+  const hit = Object.entries(NAMED_STILL).find(([key]) =>
+    line.itemId.includes(key),
+  );
+  if (hit) return hit[1];
+
+  return orderLooksChocolate(line) ? CHOCOLATE_STILL : PALE_STILL;
 }
 
 function cropsFor(still: string): StillCrops {
@@ -218,7 +248,7 @@ function PaySwirl({
               className="pay-swirl__finished"
               style={{
                 backgroundImage: `url(${still})`,
-                backgroundPosition: crops.wall,
+                backgroundPosition: "50% 50%",
               }}
             />
           </div>
